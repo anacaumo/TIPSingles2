@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treino de Tradução Juramentada – OMM El Niño</title>
+    <!-- Tema: aplicado antes de desenhar a página, para não piscar. Uma escolha salva vale mais do que a configuração do sistema. -->
+    <script>
+        (function () {
+            var dark = false;
+            try { dark = !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); } catch (e) {}
+            try { var saved = localStorage.getItem('translationPracticeTheme'); if (saved) dark = saved === 'dark'; } catch (e) {}
+            if (dark) document.documentElement.classList.add('dark');
+        })();
+    </script>
+    <!-- Estilo: usa o tailwind.js da mesma pasta se existir (funciona offline); senão, busca na internet -->
+    <script src="tailwind.js"></script>
+    <script>if (typeof tailwind === 'undefined') { document.write('<script src="https://cdn.tailwindcss.com"><\/script>'); }</script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .utterance .box { transition: all 0.2s ease; }
+        .utterance.hidden { display: none; }
+        /* tamanho da letra (controle A− / A+ no cabeçalho) */
+        .txt { font-size: calc(.875rem * var(--fs, 1)); line-height: 1.625; }
+        /* cada falante tem a sua cor no box */
+        .box.sp { background-color: var(--sp-bg); border-left: 4px solid var(--sp-bd); }
+        html.dark .box.sp { background-color: var(--sp-bgd); border-left-color: var(--sp-bdd); }
+        .utterance.active .box.sp { border-left-color: var(--sp-bd) !important; }
+        html.dark .utterance.active .box.sp { border-left-color: var(--sp-bdd) !important; }
+        .expr-mark { background: #fde68a; color: inherit; border-radius: 3px; padding: 0 2px; }
+        html.dark .expr-mark { background: rgba(250, 204, 21, .35); }
+        .utterance.active .box {
+            background-color: #eff6ff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        /* Duas colunas (inglês e português) que andam juntas: cada turno é uma linha com as duas */
+        .content-pad { padding-left: max(1.5rem, calc((100% - 80rem) / 2)); padding-right: max(1.5rem, calc((100% - 80rem) / 2)); }
+        #video-box { height: min(var(--vh, clamp(170px, 42vh, 560px)), 70vh, calc((100vw - 10rem) * 9 / 16)); }
+        /* -5s e +5s ficam dos lados do vídeo (economiza altura); no modo perguntas voltam para baixo */
+        #video-wrapper { flex-direction: row; align-items: center; gap: .75rem; }
+        #skip-row { display: contents; }
+        #skip-back-btn { order: 0; } #video-box { order: 1; } #skip-forward-btn { order: 2; }
+        #splitter { touch-action: none; }
+        /* botões no canto direito: em coluna ao lado do vídeo; no modo perguntas, em linha sobre o painel da direita */
+        #chrome-right { flex-direction: column; align-items: stretch; gap: 2px; }
+        #mode-switch { flex-direction: column; }
+        #chrome-right .sep { display: block; height: 1px; margin: 2px 6px; }
+        #chrome-right .chrome-btn { width: 100%; }
+        body[data-mode="questions"] #chrome-right { flex-direction: row; align-items: center; gap: 2px; }
+        body[data-mode="questions"] #mode-switch { flex-direction: row; }
+        body[data-mode="questions"] #chrome-right .sep { width: 1px; height: 20px; margin: 0 4px; }
+        body[data-mode="questions"] #chrome-right .chrome-btn { width: auto; }
+        @media (max-width: 899px) { main { padding-top: 2.75rem; } }
+        /* trecho da transcrição abaixo do vídeo (modo perguntas) */
+        #ctx-panel { display: none; flex-direction: column; min-height: 0; max-height: 40vh; }
+        main[data-mode="questions"] #ctx-panel.open { display: flex; }
+        .ctx-dim { opacity: .5; transition: opacity .15s; }
+        .ctx-dim:hover { opacity: .95; }
+        /* modo "só vídeo": sem transcrições nem perguntas, o vídeo ocupa a página */
+        main[data-mode="video"] #video-section { flex: 1 1 auto; justify-content: center; }
+        main[data-mode="video"] #video-box { height: min(calc(100vh - 9rem), calc((100vw - 10rem) * 9 / 16)); }
+        main[data-mode="video"] #splitter { display: none; }
+        #splitter .grip { width: 3rem; height: 4px; border-radius: 9999px; background: #cbd5e1; transition: background .15s; }
+        #splitter:hover .grip, #splitter:focus-visible .grip, #splitter.dragging .grip { background: #6366f1; }
+        html.dark #splitter .grip { background: #5f5d68; }
+        html.dark #splitter:hover .grip, html.dark #splitter:focus-visible .grip, html.dark #splitter.dragging .grip { background: #c9bfff; }
+
+        /* Modo perguntas: o vídeo volta para a esquerda e a pergunta fica à direita */
+        @media (min-width: 900px) {
+            main[data-mode="questions"] { flex-direction: row; }
+            main[data-mode="questions"] #video-section { width: 44%; min-width: 380px; align-items: stretch; justify-content: flex-start; padding: 2.25rem 1.5rem 1.5rem; overflow-y: auto; border-bottom-width: 0; border-right-width: 1px; }
+            main[data-mode="questions"] #panel { padding-top: 2.75rem; }
+            main[data-mode="questions"] #ctx-panel { flex: 1 1 0; min-height: 200px; max-height: none; }
+            main[data-mode="questions"] #video-wrapper { width: 100%; flex-direction: column; align-items: center; gap: .5rem; }
+            main[data-mode="questions"] #skip-row { display: flex; justify-content: center; gap: .75rem; order: 2; }
+            main[data-mode="questions"] #splitter { display: none; }
+            main[data-mode="questions"] #video-box { height: auto; width: 100%; }
+        }
+        .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1rem; }
+        #transcript-container.lang-en .col-pt, #transcript-container.lang-pt .col-en { display: none; }
+        #transcript-container.lang-en .cols, #transcript-container.lang-pt .cols { grid-template-columns: minmax(0, 1fr); }
+        #transcript-container.lang-pt .col-pt { border-left: 0; padding-left: 0; }
+
+        #video-box iframe { width: 100%; height: 100%; display: block; }
+        #kaltura-host { width: 100%; height: 100%; }
+        #kaltura-host .playkit-container, #kaltura-host .playkit-player { width: 100% !important; height: 100% !important; }
+        .video-msg { color: #fff; background: rgba(0, 0, 0, .88); }
+        .video-msg a { color: #a5b4fc; text-decoration: underline; }
+
+        /* ================= Tema escuro (Material 3) — o mesmo do editor =================
+           Só vale com <html class="dark">; o tema claro não é afetado. */
+        html.dark { color-scheme: dark; }
+        html.dark body { background-color: #141318; color: #e3e2e8; }
+        html.dark input:not([type=checkbox]):not([type=radio]) { background-color: #201f24; color: #e3e2e8; }
+        html.dark ::placeholder { color: #b7b4c1; opacity: 1; }
+        html.dark ::selection { background: #3d3d8e; color: #e5deff; }
+        html.dark .bg-white { background-color: #2a292e; }
+        html.dark .bg-slate-50 { background-color: #141318; }
+        html.dark .bg-slate-50\/50 { background-color: #141318; }
+        html.dark .bg-slate-100 { background-color: #201f24; }
+        html.dark .bg-slate-200 { background-color: #353439; }
+        html.dark .bg-indigo-50 { background-color: #37353f; }
+        html.dark .bg-indigo-100 { background-color: #3d3d8e; }
+        html.dark .bg-indigo-600 { background-color: #c9bfff; }
+        html.dark .bg-emerald-100 { background-color: #015236; }
+        html.dark .bg-amber-50 { background-color: #3a3534; }
+        html.dark .bg-amber-100 { background-color: #4a3a1c; }
+        html.dark .bg-rose-100 { background-color: #5b2a2c; }
+        html.dark .text-rose-800 { color: #ffb4ab; }
+        html.dark .hover\:bg-amber-200:hover { background-color: #5a4720; }
+        html.dark .hover\:bg-rose-200:hover { background-color: #6e3336; }
+        html.dark .hover\:bg-slate-50:hover { background-color: #201f24; }
+        html.dark .hover\:bg-slate-100:hover { background-color: #37363c; }
+        html.dark .hover\:bg-slate-200:hover { background-color: #37363c; }
+        html.dark .hover\:bg-slate-300:hover { background-color: #434247; }
+        html.dark .hover\:bg-indigo-50:hover { background-color: #37353f; }
+        html.dark .hover\:bg-indigo-200:hover { background-color: #4a4a97; }
+        html.dark .hover\:bg-indigo-700:hover { background-color: #bbb3f4; }
+        html.dark .hover\:bg-emerald-200:hover { background-color: #0c5f41; }
+        html.dark .text-slate-800 { color: #e3e2e8; }
+        html.dark .text-slate-700 { color: #e3e2e8; }
+        html.dark .text-slate-600 { color: #c7c5d2; }
+        html.dark .text-slate-500 { color: #c7c5d2; }
+        html.dark .text-slate-400 { color: #b7b4c1; }
+        html.dark .text-white { color: #1f2774; }
+        html.dark .text-indigo-500 { color: #c9bfff; }
+        html.dark .text-indigo-600 { color: #c9bfff; }
+        html.dark .text-indigo-700 { color: #c9bfff; }
+        html.dark .text-indigo-800 { color: #e5deff; }
+        html.dark .text-indigo-900 { color: #e5deff; }
+        html.dark .text-emerald-800 { color: #88f8c5; }
+        html.dark .text-amber-800 { color: #ffddba; }
+        html.dark .hover\:text-slate-700:hover { color: #e3e2e8; }
+        html.dark .hover\:text-indigo-900:hover { color: #e5deff; }
+        html.dark .border-slate-200 { border-color: #474550; }
+        html.dark .border-slate-300 { border-color: #928f9b; }
+        html.dark .border-indigo-200 { border-color: #3d3d8e; }
+        html.dark .border-indigo-300 { border-color: #8f85e1; }
+        html.dark .border-amber-300 { border-color: #bc8642; }
+        html.dark .focus-within\:border-indigo-500:focus-within { border-color: #c9bfff; }
+        html.dark .focus-within\:ring-indigo-500:focus-within { --tw-ring-color: #c9bfff; }
+        html.dark .border-black\/5 { border-color: rgb(255 255 255 / .14); }
+        html.dark .placeholder\:text-slate-400::placeholder { color: #b7b4c1; }
+        html.dark header.bg-indigo-100 { background-color: #34323f; }
+        html.dark .custom-scrollbar::-webkit-scrollbar-track { background: #1c1b20; }
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #5f5d68; }
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #787581; }
+        html.dark .utterance.active .box {
+            background-color: #43414f !important; border-color: #c9bfff !important; box-shadow: 0 4px 10px -2px rgba(0, 0, 0, .55) !important;
+        }
+        html.dark .avatar-dyn { background-color: var(--av-bg-d) !important; color: var(--av-fg-d) !important; }
+        html.dark #custom-alert { background-color: #e3e2e8; color: #313035; }
+        html.dark #custom-alert.alert-error { background-color: #822624; color: #fedad6; }
+        html.dark #custom-alert button { color: inherit; }
+        html.dark #custom-alert button:hover { background-color: rgb(255 255 255 / .12); }
+        html.dark #custom-alert:not(.alert-error) button:hover { background-color: rgb(0 0 0 / .12); }
+        #theme-btn .icon-sun { display: none; }
+        html.dark #theme-btn .icon-sun { display: inline; }
+        html.dark #theme-btn .icon-moon { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex flex-col font-sans">
+
+    <!-- Sem barra no topo: o crédito fica no canto esquerdo e os botões no canto direito, ao lado do vídeo -->
+    <p id="chrome-left" class="fixed top-2 left-3 z-20 m-0 text-[11px] text-indigo-700 pointer-events-none">Criado por <span class="font-semibold">Ana Carolina Caumo</span></p>
+    <div id="chrome-right" class="fixed top-2 right-3 z-20 flex bg-white border border-slate-200 rounded-xl shadow-md p-1">
+        <div id="mode-switch" role="group" aria-label="Modo" class="flex gap-0.5">
+            <button id="mode-transcripts" type="button" aria-pressed="true" class="chrome-btn flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors text-slate-600 hover:bg-slate-100"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="shrink-0"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="14" y2="18"></line></svg><span>Transcrições</span></button>
+            <button id="mode-video" type="button" aria-pressed="false" class="chrome-btn flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors text-slate-600 hover:bg-slate-100"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="shrink-0"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg><span>Só vídeo</span></button>
+            <button id="mode-questions" type="button" aria-pressed="false" class="chrome-btn flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors text-slate-600 hover:bg-slate-100"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="shrink-0"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>Perguntas do avaliador</span></button>
+        </div>
+        <span class="sep bg-slate-200" aria-hidden="true"></span>
+        <button id="theme-btn" type="button" aria-pressed="false" aria-label="Mudar para o modo escuro" title="Mudar para o modo escuro" class="chrome-btn flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors text-slate-600 hover:bg-slate-100">
+            <svg class="icon-moon shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <svg class="icon-sun shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            <span id="theme-label">Modo escuro</span>
+        </button>
+    </div>
+
+    <main id="main" data-mode="transcripts" class="flex-1 flex flex-col overflow-hidden">
+        <!-- Em cima, no centro: o vídeo (carregado pela própria página, ninguém precisa enviar nada) -->
+        <section id="video-section" class="shrink-0 px-6 py-2 flex flex-col items-center gap-2 border-slate-200 bg-slate-100">
+            <div id="video-wrapper" class="flex items-center shrink-0 max-w-full">
+                <div id="video-box" class="bg-black rounded-xl overflow-hidden shadow-lg aspect-video min-w-0 max-w-full flex items-center justify-center relative">
+                    <div id="yt-host" class="w-full h-full"></div>
+                    <div id="kaltura-host" class="hidden w-full h-full"></div>
+                    <video id="html5" class="hidden w-full h-full object-contain" controls playsinline></video>
+                    <div id="video-msg" class="video-msg hidden absolute inset-0 items-center justify-center text-center text-sm leading-relaxed p-6"></div>
+                </div>
+                <div id="skip-row">
+                    <button id="skip-back-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm">-5s</button>
+                    <button id="skip-forward-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm">+5s</button>
+                </div>
+            </div>
+            <!-- Trecho da transcrição (modo perguntas): fica logo abaixo do vídeo -->
+            <div id="ctx-panel" class="w-full">
+                <div class="flex items-center justify-between gap-3 mb-2 shrink-0">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Trecho da transcrição <span id="ctx-sub" class="normal-case tracking-normal font-semibold">(expressão destacada · turnos vizinhos esmaecidos)</span></div>
+                    <button id="ctx-close" type="button" class="text-xs font-semibold text-slate-500 hover:text-slate-700 underline underline-offset-2">Fechar</button>
+                </div>
+                <div id="ctx-body" class="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1"></div>
+            </div>
+        </section>
+
+        <div id="splitter" role="separator" aria-orientation="horizontal" tabindex="0" title="Arraste para aumentar ou diminuir o vídeo (duplo clique: tamanho padrão)" aria-label="Tamanho do vídeo" class="shrink-0 h-3 flex items-center justify-center cursor-row-resize bg-slate-100 border-y border-slate-200 select-none"><span class="grip"></span></div>
+
+        <!-- Embaixo, metade e metade: transcrições (EN | PT) ou perguntas -->
+        <section id="panel" class="flex-1 min-h-0 flex flex-col bg-white overflow-hidden relative">
+
+            <div id="view-transcripts" class="flex flex-1 min-h-0 flex-col">
+                <div class="content-pad bg-white border-b border-slate-200 py-3 shadow-sm z-10 flex gap-3 items-center justify-between shrink-0">
+                    <div id="search-box" class="flex items-center gap-2 flex-1 min-w-0 bg-slate-100 rounded-lg px-3 py-1.5 border border-slate-200 focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 shrink-0"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="search-input" placeholder="Buscar nas transcrições (qualquer palavra, em inglês ou português)" class="w-full text-sm border-0 focus:ring-0 outline-none bg-transparent placeholder:text-slate-400">
+                    </div>
+                    <div id="lang-switch" role="group" aria-label="Idiomas" class="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-sm shrink-0">
+                        <button type="button" data-lang="both" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-white text-indigo-700 shadow-sm">EN + PT</button>
+                        <button type="button" data-lang="en" class="text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-700">EN</button>
+                        <button type="button" data-lang="pt" class="text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-700">PT</button>
+                    </div>
+                    <div class="fs-group flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-sm shrink-0" role="group" aria-label="Tamanho da letra">
+                        <button type="button" aria-label="Diminuir a letra" title="Diminuir a letra" class="fs-down text-xs font-bold px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">A&minus;</button>
+                        <button type="button" aria-label="Aumentar a letra" title="Aumentar a letra" class="fs-up text-base leading-none font-bold px-2.5 py-1 rounded-md text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">A+</button>
+                    </div>
+                    <button id="follow-btn" type="button" aria-pressed="true" title="Rolar as transcrições junto com o vídeo" class="shrink-0 text-xs font-semibold py-1.5 px-3 rounded-lg border transition-colors whitespace-nowrap shadow-sm bg-indigo-100 text-indigo-700 border-indigo-300">Acompanhar vídeo</button>
+                    <span id="utterance-count" class="shrink-0 text-xs font-semibold bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full whitespace-nowrap">0 turnos</span>
+                </div>
+                <div id="transcript-container" class="lang-both content-pad flex-1 overflow-y-auto pb-2 custom-scrollbar bg-slate-50/50 pb-32 relative"></div>
+            </div>
+
+            <div id="view-questions" class="hidden flex-1 min-h-0 flex-col">
+                <div class="content-pad bg-white border-b border-slate-200 py-3 shadow-sm z-10 shrink-0">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <h2 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">Perguntas do avaliador</h2>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div id="q-filter" role="group" aria-label="Filtrar perguntas" class="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-sm">
+                                <button type="button" data-f="all" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-white text-indigo-700 shadow-sm">Todas</button>
+                                <button type="button" data-f="review" class="text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-700">Para rever</button>
+                                <button type="button" data-f="todo" class="text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-700">Sem avaliação</button>
+                            </div>
+                            <div class="fs-group flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-sm shrink-0" role="group" aria-label="Tamanho da letra">
+                                <button type="button" aria-label="Diminuir a letra" title="Diminuir a letra" class="fs-down text-xs font-bold px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">A&minus;</button>
+                                <button type="button" aria-label="Aumentar a letra" title="Aumentar a letra" class="fs-up text-base leading-none font-bold px-2.5 py-1 rounded-md text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">A+</button>
+                            </div>
+                            <button id="q-shuffle" type="button" title="Muda a ordem das perguntas (clique de novo para voltar à ordem original)" class="text-xs font-semibold py-1.5 px-3 rounded-lg border transition-colors whitespace-nowrap shadow-sm bg-white text-slate-500 border-slate-300 hover:bg-slate-50">Embaralhar</button>
+                            <span id="q-progress" class="text-xs font-semibold bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full whitespace-nowrap">Pergunta 0 de 0</span>
+                        </div>
+                    </div>
+                    <div id="q-nav" class="flex flex-wrap gap-1.5 pt-1"></div>
+                    <div id="q-stats" class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 mt-3"></div>
+                    <p id="q-help" class="text-[11px] text-slate-500 mt-1">Clique no horário (no título ou no texto da pergunta) para ir àquele ponto do vídeo; clicar de novo repete. Depois de abrir o gabarito, marque como foi: o número da pergunta ganha cor.</p>
+                </div>
+                <div id="q-body" class="content-pad flex-1 overflow-y-auto py-4 custom-scrollbar bg-slate-50/50"></div>
+                <div class="content-pad border-t border-slate-200 bg-white py-3 flex justify-between items-center shrink-0">
+                    <button id="q-prev" type="button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">&larr; Anterior</button>
+                    <button id="q-next" type="button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">Próxima &rarr;</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===== DADOS EMBUTIDOS =====
+         As duas transcrições (XML) e as perguntas (TXT) ficam aqui dentro: a página funciona sozinha, sem enviar arquivo nenhum.
+         Para corrigir uma pergunta ou uma frase, basta editar o texto dentro do bloco correspondente. -->
+    <script id="data-en" type="text/plain"><doc id="WMO_PRESS_CONFERENCE_EL_NINO_UPDATE" file="WMO_PRESS_CONFERENCE_EL_NINO_UPDATE.TXT">
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:00:00">Good morning, everyone. I'm very pleased to welcome you to this press briefing where the World Meteorological Organization will present findings from our latest El Niño update, which we issued this morning, along with the Global Seasonal Climate Update for the next quarter. You should have received these updates and the press release in UN languages. My name is Nandita Surendran and I'm the Chief of Communications at WMO. I'll be your moderator today. WMO has been issuing the El Niño/La Niña updates for nearly 30 years now. This is an authoritative seasonal forecast that brings together the world's leading experts and scientists. In June, you will remember, we called for the world to prepare for an El Niño. Today, we will provide the latest information on its forecast evolution and likely impacts. I'm delighted to welcome our 2 speakers today who'll take us through where we are and what we can expect to see. Celeste Saulo is the Secretary-General of WMO, and Wilfran Moufouma Okia is the Chief of the Climate Prediction Section, also at WMO. After our speakers finish, we will, of course, take your questions. So, Celeste, over to you.</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:01:18">Thank you very much, Nandita, and dear members of the media. I am pleased to be with you today for the release of the new World Meteorological Organization El Niño update, and thank you very much for your interest. WMO El Niño/La Niña updates are the world's most authoritative source of information for governments and decision makers. They are based on the consensus models From WMO global producing centers, climate prediction centers, and experts from national meteorological and hydrological services around the world. These forecasts show an exceptionally high likelihood of nearly 100% that El Niño will persist through to February 2027. Nearly 100%. This is the first time that we expressed such a degree of certainty. El Niño is firmly established in the tropical Pacific. Sea surface temperatures in the region are already well above average and are continuing to rise. Subsurface ocean average— sorry, subsurface ocean temperatures are also exceptionally high. And in some areas more than 8 degrees Celsius above normal during July and early August. This means that this— there is a huge pool of very warm ocean waters that will fuel the intensity of El Niño. The WMO update shows that El Niño has strengthened and will continue as a very strong event. Even exceptionally strong. In this trajectory continues, it may be stronger than anything since our monitoring began. So literally off the charts we have used for the past four decades. El Niño will peak towards the end of 2026, but its impacts will be felt long after that, including on global temperatures. The powerful 2023-2024 El Niño contributed to 2024 being the warmest year on record. We should not be surprised if this record is broken. WMO will be closely monitoring global temperatures in the months ahead. Why does this matter? El Niño means the volatile because it was first noticed by Peruvian fishermen around Christmas time. It sounds small and innocent, but this El Niño will deliver a major blow to communities, economies, and supply chains across the globe. So many sectors will be affected: agriculture, trade, fisheries, health, energy, transport, water resources, disaster management, to name but a few. We are already seeing disruption and devastation from droughts and floods and extreme weather. We expect these impacts to multiply and cascade as El Niño intensifies. This exceptional El Niño demands exceptional preparation and response. Seasonal forecasts such as the WMO El Niño updates provide a vital window of opportunity. We have no time to lose. What are we doing? WMO has launched an unprecedented mobilization with national meteorological and hydrological services who are on the front line of delivering the forecast and services to save lives and livelihoods. We are also working closely with partners across the United Nations and humanitarian system. WMO is part of the core UN team with the UN Office of Disaster Risk Reduction and the Food and Agriculture Organization, working with UN country teams in managing risks associated with the 2026-2027 El Niño episode while identifying opportunities for building resilience. The WMO coordination mechanism is providing tailored expertise to the humanitarian sector. Coordination and commitment are essential. In Africa, the African Union has called for a collective response. Preparedness for El Niño will be one of the focuses of the Africa Early Warnings Forum taking place this week in Addis Ababa. For example, the Tanzania Meteorological Agency has a nationwide awareness campaign reaching agriculture and food security sector, railroads and roads, disaster managers, and the general public. Across Latin America and the Caribbean, UN partners are rolling out preparedness plans in countries traditionally hard hit by El Niño. Anticipatory action plans include cash assistance, drought and flood-resistant seeds, livestock protection, and flood protection measures. Panama has declared a national state of emergency to mobilize spending on preventive and response measures. In parallel, the Panama Canal Authority has implemented water-saving operations as part of wider measures to strengthen water sustainability. Peru has declared a state of emergency across 40% of the country for flooding and landslides. In Asia, national meteorological and hydrological services in some countries are advising decision makers about the risk of below normal rains. India convened a high-level interministerial review of El Niño preparedness involving agriculture, health, water power, and economic agencies. Singapore is strengthening protection against extreme heat. through both worker safety rules and a national heat wave response plan. Nations in the Pacific are geared up for an above-average tropical cyclone season. WMO will be showcasing more examples of proactive planning in the coming weeks. I've said this before and I'll tell this again: El Niño does not have to be a recipe for disaster. We have the focus, the foresight to save lives and protect livelihoods. Today, we are issuing a call to action. The science is clear. We have the knowledge and tools to prevent El Niño-related hazards becoming a crisis. Let us join together and ensure that we leave nobody behind. Thank you.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:08:28">Thank you, Celeste. Wilfran, over to you.</u>
+  <u who="wilfran moufouma okia" role="wmo  chief of climate prediction section" video_time="00:08:33">Thank you very much. Good morning, everyone. Thank you very much, Madam Secretary-General and Nandita. I would like to build on the statement made by the Secretary-General of the World Meteorological Organization and try to provide some insight on the report we issued today. The message of the report is clear, so El Niño is firmly established. It has strengthened rapidly over the past month, and there is an exceptionally high confidence for this event to persist through the end of the year and into early 2027. There is also another equally important message from this report, is that the high confidence in the El Niño forecast Does that mean certainty on its impact? The impact depends on many other processes and elements I will distinguish in a few minutes. But let me start with what have we observed since the onset of the event, which occurred around April. So El Niño has strengthened rapidly. If we take one of the key indicators we use to monitor the evolution of El Niño, which is the sea surface temperature anomaly in the central and the eastern part of the tropical Pacific in a region we call the Niño 3.4 region. This region has seen a marked increase of sea surface temperature anomaly, and we are talking about value ranging from +1.5 degrees degrees Celsius to 2 degrees Celsius in May, July, and those values have increased further in August, reaching up to +2.6 degrees. But what is striking is that the warming is not confined to the sea surface. There is a large reservoir of heat beneath the surface. And in some places, we measure value around +8°C. So this is striking. In short, what we can say is that the sea surface warming, the subsurface ocean heat content, and the atmospheric circulation are singing the same song. And this gives us Confidence to say that El Niño is firmly established and has strengthened rapidly. What comes next? So our forecast indicates a near 100% probability for this event to persist in September-November and remain active up to February 2027. This is an exceptionally strong forecast signal we've never seen before. But let me be clear here. The strong— the 100% probability simply means that we have an exceptionally high confidence for this event to persist. It doesn't mean that we have a 100% probability for a flood, a drought, or even a heat wave to occur in a given country. If you were to put in terms of the magnitude of the event, all our models are indicating the same travel. So there is a broad agreement to say that the El Niño event will be classified as a very strong event, meaning it will have a magnitude above +2 degrees Fahrenheit. Celsius, and it will peak, as you heard from the Secretary-General, later in the end of the year. However, what is less certain is the magnitude of the peak and the timing. To give you an idea, our forecasts indicate on the average a magnitude of +3.6. Let's be clear again here. The strength of the El Niño peak doesn't imply anything on the severity of the impact, which depends on where you are, the time of the year, the way the El Niño phenomenon will play out with other climate drivers, and plus other non-climatic processes like vulnerability or exposure. Now, the next thing we can say before I conclude is that In complement to the update on El Niño, WMO, to kind of provide a full picture of the climatic driver of the change, we complement the El Niño update with the Global Seasonal Climate Update, which is essentially a seasonal climate outlook which tries to integrate all the possible climate drivers worldwide. If we look at the message coming for this outlook, If I pick randomly the rainfall, what we can see clearly is that there is, for the period September to November, there is a clear signature of El Niño in the tropical Pacific with regional contrast. The probability favor, I will say, wetter than normal condition over the greater Horn of Africa. Over some parts of South America. And at the same time, the probability also favors drier than normal conditions over India subcontinent, Southeast Asia and the maritime continent, Australia, northern part of South America, Central America, and the Caribbean. And in terms of temperature, what we can also say is that the probability favors above average temperature in most of— in a large proportion of land area. But in concluding, what I would like to stress here is that the value of forecasts lies in the lead time to anticipate or to take action. We can certainly not prevent El Niño from happening, but with better observation, better forecasts, better early warning system, and even better climate services, We can equip our government with the intelligence they need to mitigate the risk of El Niño. Furthermore, our national met services, the regional climate outlook forums, the regional climate centers, are the authoritative place where we need to turn to, to try to translate the global information we provided today into regional and national guidance. Thank you very much.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:15:50">Thank you, Wilfran. We are now open for questions. Bianca, please.</u>
+  <u who="bianca rotier" role="press" video_time="00:15:56">Okay, thank you very much. Here, Bianca Rotier from Globo TV Brazil. Secretary-General, one of the maps showed the contrast in Brazil, like the possibility of severe rain in the north and northeast, and also the the drought in the north-northeast and extreme rainfall in the south. Do you believe that emerging countries like Brazil are prepared, or have we already crossed the line where even scientific warnings and early alerts won't be enough to prevent humanitarian disasters and economic disasters? And more specific about— if you can talk a little bit more specific on Brazil and beyond these humanitarian tragedies, what scale of economic impact does the WMO fear for the region, for Brazil? Thanks a lot.</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:17:04">Well, thank you for your question, and yes, indeed, Brazil is one of the It's a big country and the signals are clear towards drought conditions in the northeast and the wetter conditions in the southeast. And certainly Brazil is a very well-prepared country. They have a strong Met Service and also a strong academic community. And I mention both because it's about monitoring, it's about forecasting, but also about understanding the impacts. As you said, Brazil may be exposed in the northern part to issues on water, hydropower, and Brazil is severely— well, depends a lot on hydropower. And in the south, these flooding possibilities can, of course, affect food. But having this information in advance, and I know that Brazil uses it carefully, helps the country to prepare much better. And I think that Brazil is putting in place several measures, as other countries in the region. Usually when we speak from the UN perspective, we tend to concentrate more in the more vulnerable countries in the world, least developed world. Small Island Developing States. That does not mean that we don't care about the developing world, but certainly the elements are in place for Brazil to take early action, and I'm sure that that is being the case, as it is in many other countries in South America.</u>
+  <u who="bianca rotier" role="press" video_time="00:18:55">If you could just— explain, like, for ordinary people, what impacts we could feel there? For example, with the crops, with the energy, or— yeah, if you can just give some examples of impacts.</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:19:12">Well, as, as my colleague Wilfran already expressed, we cannot be certain about what impact, when, and where exactly. But when you see a picture like the one we are sharing with below normal precipitation in northeast Brazil, you expect of course impacts in agriculture. And how do you prepare? Well, you take— make different decisions in terms of what seeds you will plant. You will plant seeds that are capable of supporting less rain. And, and these are the type of decisions you're taking ahead. And, and when you have hydropower and depend on hydropower, you will use your reservoirs to manage your availability of energy. So this is the type of impacts and decision-making associated with having this information in advance.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:20:13">Thank you. Over to you.</u>
+  <u who="robin millard" role="press" video_time="00:20:16">Thank you. Robin Millard from AFP. You say this could be the strongest El Niño since the record's began. What is it that you are seeing in the data that gives you the certainty to, to be able to make that prediction? And secondly, if we know that El Niño is going to persist into February 2027, can you speak a bit more about what will happen after February 2027? What, what are the impacts of El Niño for the rest of the year? Thank you.</u>
+  <u who="wilfran moufouma okia" role="wmo  chief of climate prediction section" video_time="00:20:46">Maybe Thank you very much for your question. If I take the first part, which is what gives us the confidence that this element, this El Niño, very strong El Niño, will stand in the high end of the historical record, there is a slide. Basically, if we look through the observation from what we have in terms of the magnitude of strong and very strong El Niño events, And if we overlay the forecast, we can only speak about forecast now, we see that the forecast stands out in that picture. But of course, it will depend on the peak. I think when we will reach the peak, we will measure the value and we can confirm or disrespect— disregard the forecast. That's the first part. The second question you asked was regarding</u>
+  <u who="robin millard" role="press" video_time="00:21:48">It was regarding what happens after February 2027.</u>
+  <u who="wilfran moufouma okia" role="wmo  chief of climate prediction section" video_time="00:21:49">Yes, thank you. I'm sorry for missing this point. Yes, essentially what the report we provided today is the outcome of an exercise of seasonal forecasting. By seasonal, meaning we forecast for the next season up to 4 months. So what will happen from every month, we will update our forecast to extend the lead. I suspect when we reach February, we will have forecasts for the upcoming season and they will provide some information of where we are moving to. Thank you.</u>
+  <u who="robin millard" role="press" video_time="00:22:23">But we can expect the knock-on effects of El Niño to have an impact on the temperature in 2027, for example?</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:22:33">Yes, if I can complement that, yes, because that is a very coherent sign and that is It's something that we also experience in 2024, as I mentioned at the beginning. So with a strong El Niño, we know that we will have temperatures above normal almost everywhere. So as a result, we expect that the world mean temperature will be higher than in previous years. That is on what we expect globally and Um, on average. But, um, to also to speak about the impacts beyond 2020, February 2027, we have a, um, a nicer report that we have prepared together with other UN agencies showcasing, for example, this is just an example, but if in South Africa you expect less rain than normal, that will immediately affect the agricultural sector. But then a couple of months later, you will also be affecting the hydropower and the energy generation and the water availability. And as a result, you may also be— feel the compromise into your next seeding season. And, and that is how we expect the, the El Niño impacts to, to stay beyond even 2027 to 2028. And That will depend on how each country can adapt their decision-making not to be so exposed to this water shortage in the case of South Africa. And I think that these are the type of examples we should follow closely.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:24:22">Thank you. Okay, one final question from the room and then we have a couple of questions from online.</u>
+  <u who="unnamed reporter 1" role="press" video_time="00:24:35">Sorry. Okay. Um, you, uh, Mr. Moufouma, you said that 100% of a strong Niño doesn't mean 100% of disasters or 100% of droughts or, or catastrophic rainfalls, but normal people could make a correlation between a strong, very strong El Niño and what they have lived in past El Niños. I mean, floods and all types of disasters. So how could you explain better that to the people? And the fact that the people has not to be flooded by fear of what is coming. And secondly, I would also like to ask on the heat wave that we have lived in Europe this year. Is this heat wave have had any correlation with El Niño? And if the temperatures will be for sure globally have will increase next year, could we expect another heat wave in in Europe? Thank you. Thank you very much.</u>
+  <u who="wilfran moufouma okia" role="wmo  chief of climate prediction section" video_time="00:25:55">Thank you very much for your question. I'll start with your first question regarding the distinction between El Niño and the impact. To put it simply, El Niño changes the odds, the probability of climate condition. It is not a forecast of storm or a forecast of heat wave, right? So it changes— that's the global picture. Thank you. Now, I think it's interesting to try to explain to the general public that for us to have a detailed picture of the impact of El Niño, we need to collaborate broadly. We bring the national met services, we bring the sector concerned to try to refine the information. So we are providing the global guidance, but the detail will come from the ground, from the country. That's part of the question. And you also mentioned the question regarding the heat wave. Of course, the heat wave in Europe is not related to El Niño. We had a heat dome located somewhere in Europe. But what we can— we can just draw a parallel. What we are expecting is that over the coming months, temperature to rise above the average both everywhere. We can imagine if an heat wave occurs again, we will be in a very difficult situation, but the link is not firmly established.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:27:26">Okay, thank you. And now turning to online, we have a question from DPA and then France Radio.</u>
+  <u who="christiana" role="press" video_time="00:27:36">Christiana, here with the German Press Agency. Can you hear me? Hello, can you hear me?</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:27:45">Yes, we can.</u>
+  <u who="christiana" role="press" video_time="00:27:48">Okay, sorry about that. My first question goes back to what Madame Saulo said about the strongest we saw in 4 decades. Can you just clarify what happened 4 decades ago? Is that when WMO started? measuring El Niño effects, or because El Niños have, of course, occurred before, 4 decades ago. What exactly is the timeframe here? And I have another question for Mr. Moufouma. I think you mentioned in your initial remarks a magnitude +3.6. I was a bit confused, and I wasn't sure what that was referring to. So, if you could clarify those 2. Thank you very much.</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:28:44">Sorry, I will go first. And in terms of the timeframe you asked for, when I spoke about decades or 4 decades or a little bit more, it's about the timeframe we mentioned of monitoring in, in similar way using satellite information with the same type of indexes. Of course, El Niño started many, many decades ago, and we can trace El Niño events even in, in, in the 19th century. But, um, if we are to compare similar methodologies, that's why I mentioned the last for plasticates in this reference? Thank you.</u>
+  <u who="wilfran moufouma okia" role="wmo  chief of climate prediction section" video_time="00:29:34">Thank you very much for your question regarding the magnitude of El Niño. So again, I will clarify here. So all our tools or our forecasting system indicate that this event will be a very strong event. By our classification, it means the magnitude will be above Plus two degrees centigrade. Now our model has a spread. You say goes from the low end to the high end. If we pick an average, we can think around three plus three point six. But some other model will provide upper value, some lower. I hope that clarifies the situation. Thank you. No. Yes. So basically, the way we measure El Niño, at least from the ocean side, is to look. at the sea surface temperature anomaly in the particular box in the Pacific. And our tools are trying to reproduce that metrics, and they've come with different answers. Some will put 2, some will put higher, but on the average, we are close to +3.6. But that's the model output. Again, we need confirmation when we get to that peak and when we can have observations. Thank you. Thank you.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:30:50">Okay, thank you very much. We've run out of time for today. Please do— sorry, we can— all right, sorry, I can see a question from Reuters. Emma, would you like to go ahead?</u>
+  <u who="emma" role="press" video_time="00:31:01">Yeah, thank you so much. If you could just clarify the climate change link, obviously El Niño not caused by climate change, but presumably warmer water temperatures are. And just a quick line on the extreme weather impacts you're expecting. Are typhoons among them? Thank you.</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:31:23">Yes, as we say and you mentioned it very clear, the El Niño is natural climate variability by definition. So there is no necessarily any link between climate change and El Niño, El Niño frequency, or El Niño strength. None at all. Of course, if we expect warmer temperatures on top of a warming world, certainly the amount of heat into the system will be larger. And that is what we are mentioning here. That is in terms of the magnitude and the climate change. And on your question on extreme events, we are already experiencing extreme events. Some of them are related to Niño, some are not. But as my colleague Wilfran mentioned, we are not forecasting necessarily a specific extreme event or here or there and the timing. The timing for an extreme event is very difficult. It's a very precise and local forecast, and that's why we also emphasize the need to go from global to regional to local forecasts. But of course, if you, you have atmospheric conditions and an environment that leads to more water availability for more rain, you can expect some severe weather occurring on top of that. Environment or, or that condition. And at the same time, if you expect less than a normal rain, that does not necessarily mean a drought. A drought is the extreme expression of below-normal precipitation, but it depends on other factors and the previous conditioning whether below-normal precipitation leads to a drought or not. And that is the, the type of decision that is on on the responsibility of national MET services locally to, of course, support their governments and their stakeholders.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:33:49">Thank you. Yes, okay, please go ahead, Bianca.</u>
+  <u who="bianca rotier" role="press" video_time="00:33:53">One clarification, because you explained that you have similar conditions to monitor since 40 years, so it wouldn't be correct if we compare before, right, with other El Niños in the past. This is a clarification. And second one, I saw in the report that there is intense heat not only in the Pacific Ocean, but also very high temperatures in the Atlantic. So what would that mean for South America, for example? Thanks.</u>
+  <u who="celeste saulo" role="wmo secretary-general" video_time="00:34:32">As I mentioned before, yes, you can always have methodologies to compare previous El Niños. We when we speak about the strong El Niños in in the memory that we all collectively have, we can speak about 1999, 1997, 1998, and we can speak about 2015, 2016. 2016. We don't need to go so far, so far, so long in, on, on time history to, to see the impacts of those strong events into, uh, into different sectors and countries. So that is just to, to put the time frame, etc. And when you speak about the Atlantic, yes, the combination of the conditions over the Atlantic plus the conditions over the Pacific do alter the expected weather in South America in particular. And that is well documented in terms of how the South Atlantic Convergence Zone, which is a very well-known system in South America, will be even more fueled by warmer Atlantic waters. But this is where, again, the local national met service has a role to play. And that is— and that's why WMO always points towards that level of information to be gathered at the local level.</u>
+  <u who="nandita surendran" role="chief of global communication and engagement at the wmo" video_time="00:36:08">Okay, thank you. I'm checking if we have any more questions. Don't seem to see anything online. If that's it, all right. Thank you so much for your interest and for joining the press conference today. We've posted a link to the Secretary-General's speech, which is online. A special thanks to our wonderful colleagues at UNTV that help us get this message out so widely. We are available for interviews. You have our contact details. Thank you and have a good day. Thank you.</u>
+</doc></script>
+    <script id="data-pt" type="text/plain"><doc id="WMO_PRESS_CONFERENCE_EL_NINO_UPDATE" file="WMO_PRESS_CONFERENCE_EL_NINO_UPDATE.TXT">
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:00:00">Bom dia a todos. Tenho o prazer de dar as boas-vindas a esta coletiva de imprensa, em que a Organização Meteorológica Mundial apresentará os resultados da nossa mais recente atualização sobre o El Niño, que divulgamos hoje de manhã, juntamente com a Atualização Climática Sazonal Global para o próximo trimestre. Vocês devem ter recebido essas atualizações e o comunicado de imprensa nos idiomas da ONU. Meu nome é Nandita Surendran e sou a chefe de Comunicação da OMM. Serei a moderadora de hoje. A OMM divulga as atualizações sobre o El Niño/La Niña há quase 30 anos. Trata-se de uma previsão sazonal de referência, que reúne os principais especialistas e cientistas do mundo. Em junho, vocês se lembrarão, pedimos que o mundo se preparasse para um El Niño. Hoje, vamos fornecer as informações mais recentes sobre a evolução prevista e os prováveis impactos. Tenho a alegria de receber os nossos 2 palestrantes de hoje, que nos mostrarão onde estamos e o que podemos esperar. Celeste Saulo é a secretária-geral da OMM, e Wilfran Moufouma Okia é o chefe da Seção de Previsão Climática, também da OMM. Depois que os nossos palestrantes terminarem, responderemos, é claro, às perguntas de vocês. Então, Celeste, passo a palavra a você.</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:01:18">Muito obrigada, Nandita, e prezados membros da imprensa. Tenho prazer em estar com vocês hoje para o lançamento da nova atualização da Organização Meteorológica Mundial sobre o El Niño, e agradeço muito o interesse de vocês. As atualizações da OMM sobre o El Niño/La Niña são a fonte de informação de maior referência no mundo para governos e tomadores de decisão. Baseiam-se nos modelos de consenso dos centros globais produtores da OMM, dos centros de previsão climática e de especialistas dos serviços meteorológicos e hidrológicos nacionais de todo o mundo. Essas previsões mostram uma probabilidade excepcionalmente alta, de quase 100%, de que o El Niño persista até fevereiro de 2027. Quase 100%. É a primeira vez que expressamos um grau de certeza como esse. O El Niño está firmemente estabelecido no Pacífico tropical. As temperaturas da superfície do mar na região já estão bem acima da média e continuam a subir. A média do oceano subsuperficial— desculpem, as temperaturas subsuperficiais do oceano também estão excepcionalmente altas. E, em algumas áreas, mais de 8 graus Celsius acima do normal durante julho e o início de agosto. Isso significa que essa— há uma enorme reserva de águas oceânicas muito quentes que vai alimentar a intensidade do El Niño. A atualização da OMM mostra que o El Niño se fortaleceu e continuará como um evento muito forte. Até excepcionalmente forte. Se essa trajetória continuar, ele pode ser mais forte do que qualquer coisa desde que começamos o monitoramento. Ou seja, literalmente fora dos gráficos que usamos nas últimas quatro décadas. O El Niño atingirá o pico no fim de 2026, mas os seus impactos se farão sentir muito depois disso, inclusive nas temperaturas globais. O poderoso El Niño de 2023-2024 contribuiu para que 2024 fosse o ano mais quente já registrado. Não devemos nos surpreender se esse recorde for quebrado. A OMM acompanhará de perto as temperaturas globais nos próximos meses. Por que isso importa? El Niño significa o volátil porque foi percebido pela primeira vez por pescadores peruanos por volta do Natal. Parece pequeno e inocente, mas este El Niño dará um golpe duro em comunidades, economias e cadeias de suprimento no mundo todo. Tantos setores serão afetados: agricultura, comércio, pesca, saúde, energia, transporte, recursos hídricos, gestão de desastres, só para citar alguns. Já estamos vendo perturbação e devastação causadas por secas, inundações e eventos climáticos extremos. Esperamos que esses impactos se multipliquem e se propaguem em cascata à medida que o El Niño se intensifica. Este El Niño excepcional exige preparação e resposta excepcionais. Previsões sazonais como as atualizações da OMM sobre o El Niño oferecem uma janela de oportunidade vital. Não temos tempo a perder. O que estamos fazendo? A OMM lançou uma mobilização sem precedentes com os serviços meteorológicos e hidrológicos nacionais, que estão na linha de frente da entrega da previsão e dos serviços para salvar vidas e meios de subsistência. Também estamos trabalhando em estreita colaboração com parceiros de todo o sistema das Nações Unidas e do sistema humanitário. A OMM faz parte da equipe central da ONU, com o Escritório da ONU para a Redução de Riscos de Desastres e a Organização para a Alimentação e a Agricultura, trabalhando com as equipes da ONU nos países no gerenciamento dos riscos associados ao episódio de El Niño de 2026-2027, ao mesmo tempo em que identifica oportunidades para construir resiliência. O mecanismo de coordenação da OMM está oferecendo conhecimento especializado sob medida ao setor humanitário. Coordenação e compromisso são essenciais. Na África, a União Africana pediu uma resposta coletiva. A preparação para o El Niño será um dos focos do Fórum de Alertas Precoces da África, que acontece esta semana em Adis Abeba. Por exemplo, a Agência Meteorológica da Tanzânia tem uma campanha nacional de conscientização que alcança o setor agrícola e de segurança alimentar, ferrovias e estradas, gestores de desastres e o público em geral. Em toda a América Latina e o Caribe, parceiros da ONU estão lançando planos de preparação nos países tradicionalmente mais atingidos pelo El Niño. Os planos de ação antecipatória incluem assistência em dinheiro, sementes resistentes à seca e a inundações, proteção do gado e medidas de proteção contra inundações. O Panamá declarou estado de emergência nacional para mobilizar gastos com medidas preventivas e de resposta. Paralelamente, a Autoridade do Canal do Panamá implementou operações de economia de água como parte de medidas mais amplas para fortalecer a sustentabilidade hídrica. O Peru declarou estado de emergência em 40% do país por causa de inundações e deslizamentos de terra. Na Ásia, os serviços meteorológicos e hidrológicos nacionais de alguns países estão aconselhando os tomadores de decisão sobre o risco de chuvas abaixo do normal. A Índia convocou uma revisão interministerial de alto nível da preparação para o El Niño, envolvendo os órgãos de agricultura, saúde, energia hídrica e economia. Singapura está reforçando a proteção contra o calor extremo, por meio tanto de normas de segurança do trabalhador quanto de um plano nacional de resposta a ondas de calor. As nações do Pacífico estão se preparando para uma temporada de ciclones tropicais acima da média. A OMM mostrará mais exemplos de planejamento proativo nas próximas semanas. Já disse isso antes e voltarei a dizer: o El Niño não precisa ser uma receita para o desastre. Temos o foco e a visão de futuro para salvar vidas e proteger meios de subsistência. Hoje, estamos fazendo um chamado à ação. A ciência é clara. Temos o conhecimento e as ferramentas para evitar que os perigos relacionados ao El Niño se tornem uma crise. Vamos nos unir e garantir que não deixemos ninguém para trás. Muito obrigada.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:08:28">Obrigada, Celeste. Wilfran, passo a palavra a você.</u>
+  <u who="wilfran moufouma okia" role="chefe da seção de previsão climática da omm" video_time="00:08:33">Muito obrigado. Bom dia a todos. Muito obrigado, senhora secretária-geral, e Nandita. Gostaria de complementar a declaração feita pela secretária-geral da Organização Meteorológica Mundial e tentar dar alguns esclarecimentos sobre o relatório que divulgamos hoje. A mensagem do relatório é clara: o El Niño está firmemente estabelecido. Ele se fortaleceu rapidamente no último mês, e há uma confiança excepcionalmente alta de que este evento persista até o fim do ano e no início de 2027. Há também outra mensagem igualmente importante neste relatório, que é que a alta confiança na previsão do El Niño Isso significa certeza sobre o seu impacto? O impacto depende de muitos outros processos e elementos, que vou distinguir daqui a alguns minutos. Mas deixem-me começar pelo que observamos desde o início do evento, que ocorreu por volta de abril. Então, o El Niño se fortaleceu rapidamente. Se pegarmos um dos principais indicadores que usamos para monitorar a evolução do El Niño, que é a anomalia da temperatura da superfície do mar na parte central e oriental do Pacífico tropical, numa região que chamamos de região Niño 3.4. Essa região teve um aumento marcante da anomalia da temperatura da superfície do mar, e estamos falando de valores que variam de +1,5 grau Celsius a 2 graus Celsius em maio, julho, e esses valores aumentaram ainda mais em agosto, chegando a +2,6 graus. Mas o que chama a atenção é que o aquecimento não se limita à superfície do mar. Há um grande reservatório de calor abaixo da superfície. E, em alguns lugares, medimos valores em torno de +8°C. Isso é impressionante. Em resumo, o que podemos dizer é que o aquecimento da superfície do mar, o conteúdo de calor do oceano subsuperficial e a circulação atmosférica estão cantando a mesma música. E isso nos dá confiança para dizer que o El Niño está firmemente estabelecido e se fortaleceu rapidamente. O que vem a seguir? Nossa previsão indica uma probabilidade próxima de 100% de que este evento persista em setembro-novembro e permaneça ativo até fevereiro de 2027. É um sinal de previsão excepcionalmente forte, que nunca vimos antes. Mas quero ser claro aqui. A probabilidade de 100% significa simplesmente que temos uma confiança excepcionalmente alta de que este evento persista. Não significa que haja 100% de probabilidade de que ocorra uma inundação, uma seca ou mesmo uma onda de calor em determinado país. Em termos da magnitude do evento, todos os nossos modelos indicam a mesma tendência. Há, portanto, um amplo consenso de que o El Niño será classificado como um evento muito forte, ou seja, terá uma magnitude acima de +2 graus Fahrenheit— Celsius, e atingirá o pico, como vocês ouviram da secretária-geral, mais para o fim do ano. No entanto, o que é menos certo é a magnitude do pico e o momento em que ocorrerá. Para dar uma ideia, nossas previsões indicam, em média, uma magnitude de +3,6. Deixem-me ser claro de novo aqui. A intensidade do pico do El Niño não implica nada quanto à gravidade do impacto, que depende de onde você está, da época do ano, da forma como o fenômeno El Niño vai interagir com outros fatores climáticos, além de outros processos não climáticos, como vulnerabilidade ou exposição. Agora, a próxima coisa que podemos dizer antes de concluir é que, como complemento à atualização sobre o El Niño, a OMM, para oferecer um panorama completo dos fatores climáticos da mudança, complementa a atualização sobre o El Niño com a Atualização Climática Sazonal Global, que é essencialmente uma perspectiva climática sazonal que procura integrar todos os possíveis fatores climáticos no mundo todo. Se olharmos a mensagem que vem desta perspectiva, se eu pegar a chuva, ao acaso, o que vemos claramente é que, para o período de setembro a novembro, há uma assinatura clara do El Niño no Pacífico tropical, com contrastes regionais. As probabilidades favorecem, eu diria, condições mais úmidas que o normal no Grande Chifre da África. Em algumas partes da América do Sul. E, ao mesmo tempo, as probabilidades também favorecem condições mais secas que o normal no subcontinente indiano, no Sudeste Asiático e no continente marítimo, na Austrália, no norte da América do Sul, na América Central e no Caribe. E, em termos de temperatura, o que também podemos dizer é que as probabilidades favorecem temperaturas acima da média na maior parte— em uma grande proporção da área terrestre. Mas, para concluir, o que eu gostaria de enfatizar aqui é que o valor das previsões está na antecedência para antecipar ou tomar medidas. Certamente não podemos impedir que o El Niño aconteça, mas, com melhor observação, melhores previsões, melhores sistemas de alerta precoce e até melhores serviços climáticos, podemos dar aos nossos governos a inteligência de que precisam para mitigar o risco do El Niño. Além disso, os nossos serviços meteorológicos nacionais, os fóruns regionais de perspectivas climáticas e os centros regionais do clima são o lugar de referência a que devemos recorrer para traduzir as informações globais que fornecemos hoje em orientações regionais e nacionais. Muito obrigado.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:15:50">Obrigada, Wilfran. Agora estamos abertos a perguntas. Bianca, por favor.</u>
+  <u who="bianca rotier" role="imprensa" video_time="00:15:56">Certo, muito obrigada. Aqui, Bianca Rotier, da Globo TV Brasil. Secretária-geral, um dos mapas mostrou o contraste no Brasil, como a possibilidade de chuva forte no norte e no nordeste, e também a a seca no norte-nordeste e chuva extrema no sul. A senhora acredita que países emergentes como o Brasil estão preparados, ou será que já cruzamos a linha em que nem mesmo os alertas científicos e os alertas precoces serão suficientes para evitar desastres humanitários e desastres econômicos? E, mais especificamente sobre— se a senhora puder falar um pouco mais especificamente sobre o Brasil e além dessas tragédias humanitárias, que escala de impacto econômico a OMM teme para a região, para o Brasil? Muito obrigada.</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:17:04">Bem, obrigada pela sua pergunta, e sim, de fato, o Brasil é um dos— É um país grande e os sinais são claros no sentido de condições de seca no nordeste e de condições mais úmidas no sudeste. E, com certeza, o Brasil é um país muito bem preparado. Tem um serviço meteorológico forte e também uma comunidade acadêmica forte. E menciono os dois porque se trata de monitoramento, de previsão, mas também de entender os impactos. Como você disse, o Brasil pode estar exposto, na parte norte, a problemas de água, de energia hidrelétrica, e o Brasil é severamente— bem, depende muito da energia hidrelétrica. E, no sul, essas possibilidades de inundação podem, é claro, afetar os alimentos. Mas ter essa informação com antecedência, e sei que o Brasil a usa com cuidado, ajuda o país a se preparar muito melhor. E acho que o Brasil está adotando várias medidas, assim como outros países da região. Normalmente, quando falamos da perspectiva da ONU, tendemos a nos concentrar mais nos países mais vulneráveis do mundo, no mundo menos desenvolvido. Pequenos Estados Insulares em Desenvolvimento. Isso não significa que não nos importemos com o mundo em desenvolvimento, mas certamente os elementos estão reunidos para que o Brasil tome medidas antecipadas, e tenho certeza de que é o que está acontecendo, como em muitos outros países da América do Sul.</u>
+  <u who="bianca rotier" role="imprensa" video_time="00:18:55">Se a senhora pudesse— explicar, tipo, para as pessoas comuns, que impactos poderíamos sentir ali? Por exemplo, com as lavouras, com a energia, ou— é, se a senhora puder dar alguns exemplos de impactos.</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:19:12">Bem, como, como o meu colega Wilfran já expressou, não podemos ter certeza sobre qual impacto, quando e onde exatamente. Mas, quando você vê um quadro como o que estamos mostrando, com precipitação abaixo do normal no nordeste do Brasil, você espera, é claro, impactos na agricultura. E como se prepara? Bem, você toma— toma decisões diferentes quanto às sementes que vai plantar. Você vai plantar sementes capazes de suportar menos chuva. E, e esse é o tipo de decisão que se toma com antecedência. E, e quando você tem energia hidrelétrica e depende dela, você vai usar os seus reservatórios para gerenciar a sua disponibilidade de energia. Então esse é o tipo de impacto e de tomada de decisão associado a ter essa informação com antecedência.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:20:13">Obrigada. Com você.</u>
+  <u who="robin millard" role="imprensa" video_time="00:20:16">Obrigado. Robin Millard, da AFP. Vocês dizem que este pode ser o El Niño mais forte desde que os registros começaram. O que vocês estão vendo nos dados que lhes dá a certeza para, para poder fazer essa previsão? E, em segundo lugar, se sabemos que o El Niño vai persistir até fevereiro de 2027, vocês podem falar um pouco mais sobre o que vai acontecer depois de fevereiro de 2027? Quais, quais são os impactos do El Niño para o resto do ano? Obrigado.</u>
+  <u who="wilfran moufouma okia" role="chefe da seção de previsão climática da omm" video_time="00:20:46">Talvez Muito obrigado pela sua pergunta. Se eu pegar a primeira parte, que é o que nos dá a confiança de que este elemento, este El Niño, um El Niño muito forte, ficará na ponta alta do registro histórico, há um slide. Basicamente, se olharmos as observações do que temos em termos da magnitude de eventos El Niño fortes e muito fortes, E se sobrepusermos a previsão, só podemos falar de previsão agora, vemos que a previsão se destaca nesse quadro. Mas, é claro, vai depender do pico. Acho que, quando chegarmos ao pico, mediremos o valor e poderemos confirmar ou desrespeitar— desconsiderar a previsão. Essa é a primeira parte. A segunda pergunta que você fez era sobre</u>
+  <u who="robin millard" role="imprensa" video_time="00:21:48">Era sobre o que acontece depois de fevereiro de 2027.</u>
+  <u who="wilfran moufouma okia" role="chefe da seção de previsão climática da omm" video_time="00:21:49">Sim, obrigado. Desculpe por ter deixado de lado este ponto. Sim, essencialmente, o relatório que apresentamos hoje é o resultado de um exercício de previsão sazonal. Por sazonal, quero dizer que prevemos a próxima estação, por até 4 meses. Então, o que vai acontecer é que, a cada mês, atualizaremos a nossa previsão para estender a antecedência. Imagino que, quando chegarmos a fevereiro, teremos previsões para a estação seguinte, e elas fornecerão algumas informações sobre para onde estamos indo. Obrigado.</u>
+  <u who="robin millard" role="imprensa" video_time="00:22:23">Mas podemos esperar que os efeitos em cadeia do El Niño tenham impacto na temperatura em 2027, por exemplo?</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:22:33">Sim, se eu puder complementar, sim, porque esse é um sinal muito coerente e isso é Algo que também vivemos em 2024, como mencionei no início. Então, com um El Niño forte, sabemos que teremos temperaturas acima do normal em quase todo lugar. Por isso, esperamos que a temperatura média mundial seja mais alta do que nos anos anteriores. Isso é o que esperamos globalmente e Hum, em média. Mas, hum, para também falar dos impactos além de 2020, fevereiro de 2027, temos um, hum, um bom relatório que preparamos junto com outras agências da ONU mostrando, por exemplo, isto é só um exemplo, mas se na África do Sul você espera menos chuva do que o normal, isso afetará imediatamente o setor agrícola. Mas então, alguns meses depois, você também estará afetando a energia hidrelétrica, a geração de energia e a disponibilidade de água. E, como resultado, você também pode— sentir o comprometimento na sua próxima temporada de semeadura. E, e é assim que esperamos que os, os impactos do El Niño se estendam, até além de 2027 para 2028. E Isso dependerá de como cada país conseguir adaptar a sua tomada de decisões para não ficar tão exposto a essa escassez de água, no caso da África do Sul. E acho que esses são o tipo de exemplos que devemos acompanhar de perto.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:24:22">Obrigada. Certo, uma última pergunta da sala, e depois temos algumas perguntas on-line.</u>
+  <u who="unnamed reporter 1" role="imprensa" video_time="00:24:35">Desculpem. Certo. Hum, o senhor, é, sr. Moufouma, disse que 100% de um Niño forte não significa 100% de desastres, nem 100% de secas ou, ou chuvas catastróficas, mas as pessoas comuns poderiam fazer uma correlação entre um El Niño forte, muito forte, e o que viveram em El Niños passados. Quero dizer, inundações e todo tipo de desastres. Então, como o senhor poderia explicar melhor isso às pessoas? E o fato de que as pessoas não devem ser inundadas pelo medo do que está por vir. E, em segundo lugar, eu também gostaria de perguntar sobre a onda de calor que vivemos na Europa este ano. Essa onda de calor teve alguma correlação com o El Niño? E se as temperaturas certamente vão globalmente vão aumentar no ano que vem, poderíamos esperar outra onda de calor na na Europa? Obrigado. Muito obrigado.</u>
+  <u who="wilfran moufouma okia" role="chefe da seção de previsão climática da omm" video_time="00:25:55">Muito obrigado pela sua pergunta. Vou começar pela sua primeira pergunta, sobre a distinção entre o El Niño e o impacto. Para dizer de forma simples, o El Niño muda as chances, a probabilidade das condições climáticas. Não é uma previsão de tempestade nem uma previsão de onda de calor, certo? Então muda— esse é o quadro global. Obrigado. Agora, acho interessante tentar explicar ao público em geral que, para termos um quadro detalhado do impacto do El Niño, precisamos colaborar amplamente. Reunimos os serviços meteorológicos nacionais, reunimos o setor envolvido para tentar refinar a informação. Então estamos fornecendo a orientação global, mas o detalhe virá do terreno, do país. Essa é parte da pergunta. E você também mencionou a questão da onda de calor. É claro que a onda de calor na Europa não está relacionada ao El Niño. Tivemos um domo de calor localizado em algum lugar da Europa. Mas o que podemos— podemos apenas traçar um paralelo. O que esperamos é que, nos próximos meses, a temperatura suba acima da média, tanto em todo lugar. Podemos imaginar que, se uma onda de calor ocorrer de novo, estaremos numa situação muito difícil, mas o vínculo não está firmemente estabelecido.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:27:26">Certo, obrigada. E agora, passando para o on-line, temos uma pergunta da DPA e depois da France Radio.</u>
+  <u who="christiana" role="imprensa" video_time="00:27:36">Christiana, aqui, da Agência de Imprensa Alemã. Vocês me ouvem? Alô, vocês me ouvem?</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:27:45">Sim, ouvimos.</u>
+  <u who="christiana" role="imprensa" video_time="00:27:48">Certo, desculpem por isso. A minha primeira pergunta volta ao que a senhora Saulo disse sobre o mais forte que vimos em 4 décadas. Podem esclarecer o que aconteceu há 4 décadas? É quando a OMM começou a medir os efeitos do El Niño, ou porque os El Niños, é claro, já ocorreram antes, há 4 décadas. Qual é exatamente o período aqui? E tenho outra pergunta para o sr. Moufouma. Acho que o senhor mencionou nas suas observações iniciais uma magnitude de +3,6. Fiquei um pouco confusa e não tinha certeza a que isso se referia. Então, se puderem esclarecer essas 2 questões. Muito obrigada.</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:28:44">Desculpem, vou começar eu. E, quanto ao período que você pediu, quando falei de décadas, ou 4 décadas, ou um pouco mais, é sobre o período de monitoramento de que falamos, de, de forma semelhante, usando informações de satélite com o mesmo tipo de índices. É claro que o El Niño começou muitas, muitas décadas atrás, e podemos rastrear eventos de El Niño até no, no, no século XIX. Mas, hum, se formos comparar metodologias semelhantes, é por isso que mencionei os últimos for plasticates nesta referência? Obrigada.</u>
+  <u who="wilfran moufouma okia" role="chefe da seção de previsão climática da omm" video_time="00:29:34">Muito obrigado pela sua pergunta sobre a magnitude do El Niño. Então, de novo, vou esclarecer aqui. Todas as nossas ferramentas, ou o nosso sistema de previsão, indicam que este evento será um evento muito forte. Pela nossa classificação, isso significa que a magnitude estará acima de mais dois graus centígrados. Agora, o nosso modelo tem uma dispersão. Vai, digamos, do extremo inferior ao extremo superior. Se tirarmos uma média, podemos pensar em torno de três mais três vírgula seis. Mas algum outro modelo fornecerá um valor mais alto, algum mais baixo. Espero que isso esclareça a situação. Obrigado. Não. Sim. Então, basicamente, a forma como medimos o El Niño, pelo menos do lado do oceano, é olhar a anomalia da temperatura da superfície do mar numa determinada caixa do Pacífico. E as nossas ferramentas tentam reproduzir essa métrica, e chegam a respostas diferentes. Alguns vão pôr 2, outros vão pôr mais, mas, em média, estamos perto de +3,6. Mas essa é a saída do modelo. De novo, precisamos de confirmação quando chegarmos a esse pico e pudermos ter observações. Obrigado. Obrigado.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:30:50">Certo, muito obrigada. Esgotamos o tempo por hoje. Por favor— desculpem, podemos— tudo bem, desculpem, estou vendo uma pergunta da Reuters. Emma, pode prosseguir?</u>
+  <u who="emma" role="imprensa" video_time="00:31:01">Sim, muito obrigada. Se puderem apenas esclarecer a ligação com a mudança climática, obviamente o El Niño não é causado pela mudança climática, mas presumivelmente as temperaturas mais quentes da água são. E só uma linha rápida sobre os impactos de clima extremo que vocês esperam. Tufões estão entre eles? Obrigada.</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:31:23">Sim, como dizemos, e você mencionou com muita clareza, o El Niño é, por definição, variabilidade climática natural. Portanto, não há necessariamente nenhuma ligação entre a mudança climática e o El Niño, a frequência do El Niño ou a força do El Niño. Nenhuma. É claro que, se esperamos temperaturas mais quentes em cima de um mundo que está aquecendo, certamente a quantidade de calor no sistema será maior. E é isso que estamos mencionando aqui. Isso é em termos da magnitude e da mudança climática. E, quanto à sua pergunta sobre eventos extremos, já estamos vivendo eventos extremos. Alguns deles estão relacionados ao Niño, outros não. Mas, como o meu colega Wilfran mencionou, não estamos prevendo necessariamente um evento extremo específico, aqui ou ali, e o momento. O momento de um evento extremo é muito difícil. É uma previsão muito precisa e local, e é por isso que também enfatizamos a necessidade de ir de previsões globais a regionais e locais. Mas, é claro, se você, você tem condições atmosféricas e um ambiente que levam a mais disponibilidade de água para mais chuva, pode-se esperar que ocorra algum tempo severo em cima disso. Ambiente ou, ou essa condição. E, ao mesmo tempo, se você espera menos chuva do que o normal, isso não significa necessariamente uma seca. A seca é a expressão extrema da precipitação abaixo do normal, mas depende de outros fatores e do condicionamento anterior se a precipitação abaixo do normal leva ou não a uma seca. E esse é o, o tipo de decisão que é de responsabilidade dos serviços meteorológicos nacionais, localmente, para, é claro, apoiar seus governos e suas partes interessadas.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:33:49">Obrigada. Sim, certo, pode prosseguir, Bianca.</u>
+  <u who="bianca rotier" role="imprensa" video_time="00:33:53">Um esclarecimento, porque vocês explicaram que têm condições semelhantes de monitoramento há 40 anos, então não seria correto comparar com antes, certo, com outros El Niños do passado. É um esclarecimento. E a segunda pergunta: vi no relatório que há calor intenso não só no oceano Pacífico, mas também temperaturas muito altas no Atlântico. Então, o que isso significaria para a América do Sul, por exemplo? Obrigada.</u>
+  <u who="celeste saulo" role="secretária-geral da omm" video_time="00:34:32">Como mencionei antes, sim, sempre se pode ter metodologias para comparar El Niños anteriores. Nós, quando falamos dos El Niños fortes na, na memória que todos temos coletivamente, podemos falar de 1999, 1997, 1998, e podemos falar de 2015, 2016. 2016. Não precisamos ir tão longe, tão longe, tão atrás, na, na história para, para ver os impactos desses eventos fortes em, é, em diferentes setores e países. Então isso é só para, para situar o período, etc. E, quando você fala do Atlântico, sim, a combinação das condições sobre o Atlântico com as condições sobre o Pacífico altera, de fato, o tempo esperado na América do Sul em particular. E isso está bem documentado em termos de como a Zona de Convergência do Atlântico Sul, que é um sistema muito conhecido na América do Sul, será ainda mais alimentada por águas mais quentes do Atlântico. Mas é aqui que, de novo, o serviço meteorológico nacional local tem um papel a desempenhar. E é— e é por isso que a OMM sempre aponta para esse nível de informação a ser reunido em nível local.</u>
+  <u who="nandita surendran" role="chefe de comunicação global e engajamento da omm" video_time="00:36:08">Certo, obrigada. Estou verificando se temos mais perguntas. Não parece haver nada on-line. Se for isso, tudo bem. Muito obrigada pelo interesse de vocês e por participarem da coletiva de imprensa de hoje. Publicamos um link para o discurso da secretária-geral, que está on-line. Um agradecimento especial aos nossos maravilhosos colegas da UNTV, que nos ajudam a divulgar esta mensagem de forma tão ampla. Estamos à disposição para entrevistas. Vocês têm os nossos dados de contato. Obrigada, e tenham um bom dia. Obrigada.</u>
+</doc></script>
+    <script id="data-questions" type="text/plain">PERGUNTAS DE AVALIADOR - Coletiva de imprensa da OMM: atualização sobre o El Niño
+Tradução simultânea inglês-português: justificativa de escolhas de tradução
+
+Observação: cada horário aponta para um pouco antes da expressão (cerca de uma frase antes, ou o começo da fala), para dar o contexto. A expressão aparece logo depois. Os segundos são estimativas, então vale conferir no vídeo.
+
+Formato de cada item:
+Question: pergunta do avaliador, em inglês.
+Pergunta: a mesma pergunta traduzida para o português.
+Resposta: a justificativa esperada.
+
+==================================================
+
+1. "authoritative" (0:31)
+
+Question: At about 0 minutes 31 seconds, how did you translate "authoritative" in "This is an authoritative seasonal forecast that brings together the world's leading experts and scientists"? Justify your answer.
+
+Pergunta: Por volta de 0min31s, como você traduziu "authoritative" em "This is an authoritative seasonal forecast that brings together the world's leading experts and scientists"? Justifique a sua resposta.
+
+Resposta: Traduzi por "previsão sazonal de referência". "Authoritative" é um falso amigo: "autoritária" e "autoritativa" soam mal ou nem existem nesse sentido em português. A ideia aqui é de uma previsão confiável e reconhecida, aquela a que todos recorrem. "De referência" cobre isso, é curta e natural. "Oficial" seria um exagero, porque a moderadora não diz que é a previsão oficial.
+
+--------------------------------------------------
+
+2. "over to you" (1:12)
+
+Question: At about 1 minute 12 seconds, how did you translate "over to you" in "So, Celeste, over to you."? Justify your answer.
+
+Pergunta: Por volta de 1min12s, como você traduziu "over to you" em "So, Celeste, over to you."? Justifique a sua resposta.
+
+Resposta: Traduzi por "passo a palavra a você". "Over to you" é a fórmula de passagem de palavra entre moderador e palestrante, e uma tradução literal ("sobre para você") não funciona. "Passo a palavra" é a fórmula padrão dos mediadores de evento em português. Mantive "a você" porque ela chama a colega pelo primeiro nome, num tom cordial. "A palavra é sua" seria outra opção equivalente.
+
+--------------------------------------------------
+
+3. "off the charts" (3:04)
+
+Question: At about 3 minutes 4 seconds, how did you translate "off the charts" in "So literally off the charts we have used for the past four decades."? Justify your answer.
+
+Pergunta: Por volta de 3min04s, como você traduziu "off the charts" em "So literally off the charts we have used for the past four decades."? Justifique a sua resposta.
+
+Resposta: Traduzi por "literalmente fora dos gráficos que usamos nas últimas quatro décadas". A expressão em inglês é idiomática, mas aqui ela vem com "literally" e com a menção aos gráficos que a organização realmente usa: o valor ultrapassa a escala deles. Por isso mantive a imagem concreta. "Fora de série" e "fora da curva" seriam armadilhas, porque significam "excepcional" no sentido de qualidade, e não "acima da escala".
+
+--------------------------------------------------
+
+4. "major blow" (3:46)
+
+Question: At about 3 minutes 46 seconds, how did you translate "major blow" in "this El Niño will deliver a major blow to communities, economies, and supply chains across the globe"? Justify your answer.
+
+Pergunta: Por volta de 3min46s, como você traduziu "major blow" em "this El Niño will deliver a major blow to communities, economies, and supply chains across the globe"? Justifique a sua resposta.
+
+Resposta: Traduzi por "dará um golpe duro". A imagem do golpe existe em português e funciona da mesma forma em contexto de crise ("golpe duro na economia"). "Major" ficou em "duro" porque "grande golpe" soa menos idiomático. Evitei "causará um impacto grande", que perderia a força da metáfora. "Across the globe" saiu como "no mundo todo", mais natural na fala do que "através do globo".
+
+--------------------------------------------------
+
+5. "cascade" (4:18)
+
+Question: At about 4 minutes 18 seconds, how did you translate "cascade" in "We expect these impacts to multiply and cascade as El Niño intensifies."? Justify your answer.
+
+Pergunta: Por volta de 4min18s, como você traduziu "cascade" em "We expect these impacts to multiply and cascade as El Niño intensifies."? Justifique a sua resposta.
+
+Resposta: Traduzi por "se propaguem em cascata". "Cascade" é usado aqui como verbo, e em português não existe "cascatear". A solução é recorrer à expressão "em cascata", que carrega a ideia de um efeito desencadeando o seguinte. Usei "se propaguem" ao lado de "se multipliquem" para os dois verbos não ficarem sinônimos. "As" virou "à medida que", porque indica progressão: os impactos crescem junto com a intensificação.
+
+--------------------------------------------------
+
+6. "livelihoods" (4:47)
+
+Question: At about 4 minutes 47 seconds, how did you translate "livelihoods" in "on the front line of delivering the forecast and services to save lives and livelihoods"? Justify your answer.
+
+Pergunta: Por volta de 4min47s, como você traduziu "livelihoods" em "on the front line of delivering the forecast and services to save lives and livelihoods"? Justifique a sua resposta.
+
+Resposta: Traduzi por "meios de subsistência". "Livelihoods" não é "vidas" repetido: refere-se ao sustento das pessoas, como renda, lavoura e trabalho. "Meios de subsistência" (ou "meios de vida") é o termo corrente nos textos da ONU em português. "Modos de vida" seria uma escolha ruim, porque remete a estilo de vida e cultura, não a sustento.
+
+--------------------------------------------------
+
+7. "Early Warnings Forum" (5:46)
+
+Question: At about 5 minutes 46 seconds, how did you translate "Early Warnings Forum" in "the Africa Early Warnings Forum taking place this week in Addis Ababa"? Justify your answer.
+
+Pergunta: Por volta de 5min46s, como você traduziu "Early Warnings Forum" em "the Africa Early Warnings Forum taking place this week in Addis Ababa"? Justifique a sua resposta.
+
+Resposta: Traduzi por "Fórum de Alertas Precoces da África". Em gestão de risco de desastres, "early warning" é "alerta precoce" (como em "sistemas de alerta precoce"), e é o termo corrente nos textos da ONU em português. "Alerta antecipado" também aparece, mas é menos estabelecido. A ordem também muda: o inglês coloca "Africa" no começo como modificador, e em português o nome da região vai no fim, com "da África".
+
+--------------------------------------------------
+
+8. "Anticipatory action plans" (6:17)
+
+Question: At about 6 minutes 17 seconds, how did you translate "Anticipatory action plans" in "Anticipatory action plans include cash assistance, drought and flood-resistant seeds, livestock protection, and flood protection measures."? Justify your answer.
+
+Pergunta: Por volta de 6min17s, como você traduziu "Anticipatory action plans" em "Anticipatory action plans include cash assistance, drought and flood-resistant seeds, livestock protection, and flood protection measures."? Justifique a sua resposta.
+
+Resposta: Traduzi por "planos de ação antecipatória". É um termo técnico do setor humanitário: agir antes do desastre, com base em previsões e gatilhos previamente definidos. Por isso evitei "ação preventiva" e "plano de preparação", que têm sentido mais amplo e diferente. "Antecipatória" é a forma consolidada nos documentos da ONU em português.
+
+--------------------------------------------------
+
+9. "drought and flood-resistant seeds" (6:17)
+
+Question: At about 6 minutes 17 seconds, how did you translate "drought and flood-resistant seeds" in "Anticipatory action plans include cash assistance, drought and flood-resistant seeds, livestock protection, and flood protection measures."? Justify your answer.
+
+Pergunta: Por volta de 6min17s, como você traduziu "drought and flood-resistant seeds" em "Anticipatory action plans include cash assistance, drought and flood-resistant seeds, livestock protection, and flood protection measures."? Justifique a sua resposta.
+
+Resposta: Traduzi por "sementes resistentes à seca e a inundações". O inglês economiza "resistant" e o divide entre "drought" e "flood", com o hífen aproveitado para os dois. Em português, "resistente" exige a preposição "a", que precisa aparecer diante de cada complemento: "à seca e a inundações". Também fiz "resistentes" concordar com "sementes", no plural. Se eu dissesse "resistentes à seca e inundações", a segunda parte ficaria sem a preposição e soaria errada.
+
+--------------------------------------------------
+
+10. "geared up" (7:37)
+
+Question: At about 7 minutes 37 seconds, how did you translate "geared up" in "Nations in the Pacific are geared up for an above-average tropical cyclone season."? Justify your answer.
+
+Pergunta: Por volta de 7min37s, como você traduziu "geared up" em "Nations in the Pacific are geared up for an above-average tropical cyclone season."? Justifique a sua resposta.
+
+Resposta: Traduzi por "estão se preparando". "Geared up" é um phrasal verb coloquial que significa "estar pronto, equipado para". Em simultânea, "estão se preparando" resolve rápido e é natural. "Engrenadas" seria tradução literal sem sentido em português. "Temporada" funciona bem para "season" em ciclones, e "acima da média" tem equivalência direta.
+
+--------------------------------------------------
+
+11. "recipe for disaster" (7:49)
+
+Question: At about 7 minutes 49 seconds, how did you translate "recipe for disaster" in "El Niño does not have to be a recipe for disaster."? Justify your answer.
+
+Pergunta: Por volta de 7min49s, como você traduziu "recipe for disaster" em "El Niño does not have to be a recipe for disaster."? Justifique a sua resposta.
+
+Resposta: Traduzi por "uma receita para o desastre". A expressão existe em português com a mesma imagem e o mesmo sentido, então foi possível manter a metáfora. "Receita para o desastre" é natural, enquanto "receita de desastre" soa menos idiomático. O ouvinte entende de imediato, e a ideia, de que o fenômeno não leva automaticamente a uma catástrofe, fica preservada.
+
+--------------------------------------------------
+
+12. "leave nobody behind" (8:15)
+
+Question: At about 8 minutes 15 seconds, how did you translate "leave nobody behind" in "Let us join together and ensure that we leave nobody behind."? Justify your answer.
+
+Pergunta: Por volta de 8min15s, como você traduziu "leave nobody behind" em "Let us join together and ensure that we leave nobody behind."? Justifique a sua resposta.
+
+Resposta: Traduzi por "garantir que não deixemos ninguém para trás". Essa é a fórmula consagrada da ONU e da Agenda 2030 em português ("não deixar ninguém para trás"), e o público a reconhece. Depois de "garantir que", o verbo vai para o subjuntivo, "deixemos". "Let us join together" ficou como "vamos nos unir", mais curto e natural do que "vamos nos juntar todos".
+
+--------------------------------------------------
+
+13. "sea surface temperature anomaly" (9:49)
+
+Question: At about 9 minutes 49 seconds, how did you translate "sea surface temperature anomaly" in "the sea surface temperature anomaly in the central and the eastern part of the tropical Pacific"? Justify your answer.
+
+Pergunta: Por volta de 9min49s, como você traduziu "sea surface temperature anomaly" em "the sea surface temperature anomaly in the central and the eastern part of the tropical Pacific"? Justifique a sua resposta.
+
+Resposta: Traduzi por "anomalia da temperatura da superfície do mar". "Anomalia" é o termo técnico da meteorologia e da oceanografia para o desvio em relação à média climatológica, e não tem sentido de algo estranho ou anormal. "Eastern" virou "oriental", e juntei "central e oriental" para a frase não ficar pesada. Mantive "superfície do mar", como o palestrante diz, e não "do oceano".
+
+--------------------------------------------------
+
+14. "singing the same song" (10:52)
+
+Question: At about 10 minutes 52 seconds, how did you translate "singing the same song" in "the sea surface warming, the subsurface ocean heat content, and the atmospheric circulation are singing the same song"? Justify your answer.
+
+Pergunta: Por volta de 10min52s, como você traduziu "singing the same song" em "the sea surface warming, the subsurface ocean heat content, and the atmospheric circulation are singing the same song"? Justifique a sua resposta.
+
+Resposta: Traduzi por "estão cantando a mesma música". A expressão em português existe e tem o mesmo sentido: indicadores diferentes apontam na mesma direção. Optei por manter a imagem, porque o palestrante usa a metáfora de propósito, para dar ênfase, e ela é transparente para o público. Uma alternativa mais neutra seria "estão em sintonia", mas ela perde o efeito da fala.
+
+--------------------------------------------------
+
+15. "seasonal climate outlook" (12:47)
+
+Question: At about 12 minutes 47 seconds, how did you translate "seasonal climate outlook" in "which is essentially a seasonal climate outlook"? Justify your answer.
+
+Pergunta: Por volta de 12min47s, como você traduziu "seasonal climate outlook" em "which is essentially a seasonal climate outlook"? Justifique a sua resposta.
+
+Resposta: Traduzi por "perspectiva climática sazonal". "Outlook" indica a tendência esperada, em termos de probabilidades, e não uma previsão determinística. Por isso evitei "previsão", que ele usa em outros momentos para outra coisa, e adotei "perspectiva". "Prognóstico climático" também é aceitável e é usado por serviços meteorológicos brasileiros, mas "perspectiva" é mais próximo da ideia do original.
+
+--------------------------------------------------
+
+16. "favors" (14:15)
+
+Question: At about 14 minutes 15 seconds, how did you translate "favors" in "And at the same time, the probability also favors drier than normal conditions"? Justify your answer.
+
+Pergunta: Por volta de 14min15s, como você traduziu "favors" em "And at the same time, the probability also favors drier than normal conditions"? Justifique a sua resposta.
+
+Resposta: Traduzi por "as probabilidades também favorecem condições mais secas que o normal". "Favor" funciona em português com o mesmo sentido probabilístico. Usei "probabilidades" no plural, porque, em previsão sazonal, são as probabilidades de cada categoria (mais seco, normal, mais úmido) que pendem para um lado. "Drier than normal" virou "mais secas que o normal", mantendo a concordância com "condições".
+
+--------------------------------------------------
+
+17. "lead time" (14:37)
+
+Question: At about 14 minutes 37 seconds, how did you translate "lead time" in "the value of forecasts lies in the lead time to anticipate or to take action"? Justify your answer.
+
+Pergunta: Por volta de 14min37s, como você traduziu "lead time" em "the value of forecasts lies in the lead time to anticipate or to take action"? Justifique a sua resposta.
+
+Resposta: Traduzi por "antecedência". Em previsão, "lead time" é o intervalo entre a previsão e o evento. "Tempo de espera" seria um erro, porque remete a fila, entrega ou logística. "Antecedência" expressa exatamente esse intervalo. Também usei "tomar medidas" para "take action" e "está na" para "lies in", que é o jeito natural de dizer isso em português.
+
+--------------------------------------------------
+
+18. "knock-on effects" (22:23)
+
+Question: At about 22 minutes 23 seconds, how did you translate "knock-on effects" in "But we can expect the knock-on effects of El Niño to have an impact on the temperature in 2027, for example?"? Justify your answer.
+
+Pergunta: Por volta de 22min23s, como você traduziu "knock-on effects" em "But we can expect the knock-on effects of El Niño to have an impact on the temperature in 2027, for example?"? Justifique a sua resposta.
+
+Resposta: Traduzi por "efeitos em cadeia". "Knock-on" é a ideia de uma coisa derrubando a outra, num efeito sucessivo e indireto. "Efeito em cadeia" é a expressão consagrada em português, enquanto "efeito dominó" também seria aceitável, mas mais coloquial. "Efeitos colaterais" seria um erro, porque sugere algo negativo e secundário, e a jornalista só pergunta pelas consequências posteriores.
+
+--------------------------------------------------
+
+19. "flooded by fear" (25:09)
+
+Question: At about 25 minutes 9 seconds, how did you translate "flooded by fear" in "flooded by fear of what is coming"? Justify your answer.
+
+Pergunta: Por volta de 25min09s, como você traduziu "flooded by fear" em "flooded by fear of what is coming"? Justifique a sua resposta.
+
+Resposta: Traduzi por "inundadas pelo medo". A imagem funciona em português, e ela ecoa as inundações que o repórter acabou de mencionar na mesma pergunta, o que mantém a coerência do raciocínio. "Tomadas pelo medo" resolveria o sentido, mas perderia o jogo com "floods". Como a fala não é gramaticalmente impecável, entendi o sentido pretendido, "as pessoas não devem ser dominadas pelo medo", e traduzi para um português correto.
+
+--------------------------------------------------
+
+20. "changes the odds" (25:58)
+
+Question: At about 25 minutes 58 seconds, how did you translate "changes the odds" in "El Niño changes the odds, the probability of climate condition."? Justify your answer.
+
+Pergunta: Por volta de 25min58s, como você traduziu "changes the odds" em "El Niño changes the odds, the probability of climate condition."? Justifique a sua resposta.
+
+Resposta: Traduzi por "muda as chances, a probabilidade das condições climáticas". Em linguagem de risco e meteorologia, "odds" é a "chance" de um evento ocorrer, e o palestrante já explica em seguida com "the probability". Usei "chances" para "odds" e "probabilidade" para o termo que ele usa depois, para manter a gradação. "Apostas" seria um falso amigo, e "as probabilidades" repetiria a palavra.
+
+--------------------------------------------------
+
+21. "heat dome" (26:56)
+
+Question: At about 26 minutes 56 seconds, how did you translate "heat dome" in "We had a heat dome located somewhere in Europe."? Justify your answer.
+
+Pergunta: Por volta de 26min56s, como você traduziu "heat dome" em "We had a heat dome located somewhere in Europe."? Justifique a sua resposta.
+
+Resposta: Traduzi por "domo de calor". É o termo usado em meteorologia e já está difundido na imprensa brasileira para designar a massa de ar quente estacionária. "Cúpula de calor" seria um calque possível, mas é menos frequente. "Located somewhere" virou "localizado em algum lugar", mantendo a imprecisão da fala.
+
+--------------------------------------------------
+
+22. "spread" (29:49)
+
+Question: At about 29 minutes 49 seconds, how did you translate "spread" in "Now our model has a spread."? Justify your answer.
+
+Pergunta: Por volta de 29min49s, como você traduziu "spread" em "Now our model has a spread."? Justifique a sua resposta.
+
+Resposta: Traduzi por "dispersão". Em previsão por conjuntos, "spread" é a diferença entre os resultados dos membros do modelo, e "dispersão" é o termo estatístico equivalente em português. Evitei "propagação", que seria falso amigo, e "espalhamento", que soa pouco técnico. Em simultânea, "dispersão" se entende de imediato no contexto.
+
+--------------------------------------------------
+
+23. "severe weather" (32:34)
+
+Question: At about 32 minutes 34 seconds, how did you translate "severe weather" in "you can expect some severe weather occurring on top of that"? Justify your answer.
+
+Pergunta: Por volta de 32min34s, como você traduziu "severe weather" em "you can expect some severe weather occurring on top of that"? Justifique a sua resposta.
+
+Resposta: Traduzi por "tempo severo". Em português, "tempo" é o estado da atmosfera num dado momento e "clima" é o padrão de longo prazo, e a secretária-geral está falando de eventos pontuais. "Tempo severo" é o termo da meteorologia, ao contrário de "clima severo", que seria um erro conceitual numa fala de uma organização meteorológica. "On top of that" virou "em cima disso", mantendo o registro oral.
+
+--------------------------------------------------
+
+24. "stakeholders" (33:16)
+
+Question: At about 33 minutes 16 seconds, how did you translate "stakeholders" in "to, of course, support their governments and their stakeholders"? Justify your answer.
+
+Pergunta: Por volta de 33min16s, como você traduziu "stakeholders" em "to, of course, support their governments and their stakeholders"? Justifique a sua resposta.
+
+Resposta: Traduzi por "partes interessadas". É a tradução padrão de "stakeholders" em contexto institucional e em documentos da ONU. Manter "stakeholders" em inglês é comum no mundo corporativo, mas numa coletiva da ONU para jornalistas a forma em português é mais adequada. "Atores envolvidos" seria uma alternativa aceitável, mais próxima do jargão das ciências sociais.
+
+--------------------------------------------------
+
+25. "South Atlantic Convergence Zone" (35:15)
+
+Question: At about 35 minutes 15 seconds, how did you translate "South Atlantic Convergence Zone" in "how the South Atlantic Convergence Zone, which is a very well-known system in South America"? Justify your answer.
+
+Pergunta: Por volta de 35min15s, como você traduziu "South Atlantic Convergence Zone" em "how the South Atlantic Convergence Zone, which is a very well-known system in South America"? Justifique a sua resposta.
+
+Resposta: Traduzi por "Zona de Convergência do Atlântico Sul". É o nome consagrado do fenômeno em português, que os brasileiros conhecem pela sigla ZCAS. A ordem dos elementos se inverte: em inglês o "South Atlantic" vem como modificador antes, e em português o complemento "do Atlântico Sul" vai ao final. "A very well-known system" virou "um sistema muito conhecido", e a ideia de que o público brasileiro já conhece o termo me deu segurança para usá-lo sem explicar.</script>
+
+    <script>
+        // ================= CONFIGURAÇÃO (é só aqui que se mexe) =================
+        const CONFIG = {
+            // Vídeo da ONU (Kaltura). Vem do código de incorporação (iframe) do site da ONU:
+            // partnerId = o número depois de /p/, uiConfId = o número depois de uiconf_id/, entryId = entry_id=...
+            kaltura: { partnerId: 2503451, uiConfId: 49754663, entryId: "1_vja1tr9l", audioLanguage: "en" },
+            youtubeId: "",          // ID do vídeo no YouTube: a parte depois de "v=" no link (ex.: https://www.youtube.com/watch?v=ABCDEFGHIJK -> "ABCDEFGHIJK")
+            mp4Url: "",             // alternativa ao YouTube: link ou caminho de um .mp4 (ex.: "video/carney.mp4"). Se estiver preenchido, vale mais que o YouTube
+            offsetSeconds: 0        // se o vídeo tiver alguns segundos a mais ou a menos no começo do que o arquivo que foi transcrito, ajuste aqui (positivo = o vídeo começa mais tarde)
+        };
+        // Para testar sem editar o arquivo: ?v=ID_DO_YOUTUBE, ?mp4=URL e ?offset=SEGUNDOS no endereço da página
+        (function () {
+            const qs = new URLSearchParams(location.search);
+            if (qs.get('v')) { CONFIG.youtubeId = qs.get('v'); CONFIG.kaltura.entryId = ''; }
+            if (qs.get('entry')) CONFIG.kaltura.entryId = qs.get('entry');
+            if (qs.get('mp4')) CONFIG.mp4Url = qs.get('mp4');
+            if (qs.get('offset') && !isNaN(Number(qs.get('offset')))) CONFIG.offsetSeconds = Number(qs.get('offset'));
+        })();
+
+        const $ = id => document.getElementById(id);
+        const pad = n => String(n).padStart(2, '0');
+        function esc(str) { return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+        // Liga/desliga um elemento trocando "hidden" pela classe de exibição que ele usa
+        function show(el, on, disp = 'flex') { if (!el) return; el.classList.toggle('hidden', !on); el.classList.toggle(disp, on); }
+
+        function fmtShort(sec) {
+            sec = Math.max(0, Math.floor(sec));
+            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+            return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+        }
+        function fmtHMS(sec) { sec = Math.max(0, Math.floor(sec)); return `${pad(Math.floor(sec / 3600))}:${pad(Math.floor((sec % 3600) / 60))}:${pad(sec % 60)}`; }
+        function parseVideoTime(str) {
+            const m = String(str ?? '').trim().match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/);
+            if (!m) return null;
+            const h = m[1] ? Number(m[1]) : 0, mi = Number(m[2]), s = Number(m[3]);
+            if (mi > 59 || s > 59) return null;
+            return h * 3600 + mi * 60 + s;
+        }
+        function prettyName(raw) { return String(raw ?? '').replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1)); }
+        function getAvatarColors(name) {
+            let h = 2166136261;
+            const s = String(name || '').toLowerCase().trim();
+            for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+            h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+            const hue = (h >>> 0) % 360;
+            return { bg: `hsl(${hue}, 70%, 85%)`, text: `hsl(${hue}, 80%, 25%)`, bgD: `hsl(${hue}, 42%, 32%)`, textD: `hsl(${hue}, 80%, 92%)`,
+                     tint: `hsl(${hue}, 80%, 96%)`, tintD: `hsl(${hue}, 24%, 19%)`, accent: `hsl(${hue}, 55%, 62%)`, accentD: `hsl(${hue}, 50%, 60%)` };
+        }
+
+        function showAlert(message, isError = false, durationMs = 4000) {
+            const existing = $('custom-alert');
+            if (existing) existing.remove();
+            const box = document.createElement('div');
+            box.id = 'custom-alert';
+            box.className = `${isError ? 'alert-error ' : ''}fixed bottom-6 right-6 max-w-md ${isError ? 'bg-red-600' : 'bg-slate-900'} text-white text-xs px-5 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all`;
+            const span = document.createElement('span'); span.textContent = message;
+            const close = document.createElement('button');
+            close.className = 'text-slate-400 hover:text-white ml-2 font-bold'; close.textContent = '×';
+            close.addEventListener('click', () => box.remove());
+            box.append(span, close);
+            document.body.appendChild(box);
+            setTimeout(() => { if (document.body.contains(box)) box.remove(); }, durationMs);
+        }
+
+        // ================= Dados =================
+        function parseTranscript(text, label) {
+            const safe = '<root>' + String(text).trim().replace(/^\s*<\?xml[^>]*\?>/, '').replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;') + '</root>';
+            const doc = new DOMParser().parseFromString(safe, 'text/xml');
+            if (doc.querySelector('parsererror')) throw new Error(`A transcrição em ${label} não é um XML válido.`);
+            return Array.from(doc.querySelectorAll('u')).map(u => ({
+                who: (u.getAttribute('who') || '').trim(),
+                start: parseVideoTime(u.getAttribute('video_time')),
+                text: u.textContent.replace(/\s+/g, ' ').trim()
+            })).filter(x => x.start !== null);
+        }
+        // Junta inglês e português turno a turno (os dois XMLs têm os mesmos horários); se algum horário não bater, alinha pelo horário
+        function pairTurns(en, pt) {
+            const same = en.length === pt.length && en.every((e, i) => e.start === pt[i].start);
+            if (same) return { rows: en.map((e, i) => ({ who: e.who, start: e.start, en: e.text, pt: pt[i].text })), same: true };
+            const byTime = new Map();
+            pt.forEach(p => { if (!byTime.has(p.start)) byTime.set(p.start, []); byTime.get(p.start).push(p); });
+            const rows = en.map(e => { const q = byTime.get(e.start); const p = q && q.length ? q.shift() : null; return { who: e.who, start: e.start, en: e.text, pt: p ? p.text : '' }; });
+            byTime.forEach(q => q.forEach(p => rows.push({ who: p.who, start: p.start, en: '', pt: p.text })));
+            rows.sort((a, b) => a.start - b.start);
+            return { rows, same: false };
+        }
+        function parseQuestions(text) {
+            const re = /^[ \t]*(\d+)\.\s+[“"](.+?)[”"]\s+\((\d+):(\d{2})(?::(\d{2}))?\)[ \t]*$/gm;
+            const heads = []; let m;
+            while ((m = re.exec(text)) !== null) heads.push({ n: Number(m[1]), expr: m[2].trim(), a: m[3], b: m[4], c: m[5], from: m.index, to: re.lastIndex });
+            const out = [];
+            heads.forEach((h, i) => {
+                const block = text.slice(h.to, i + 1 < heads.length ? heads[i + 1].from : text.length);
+                const f = /Question:\s*([\s\S]*?)\s*\n\s*Pergunta:\s*([\s\S]*?)\s*\n\s*Resposta:\s*([\s\S]*?)\s*(?:\n\s*[-=]{5,}[\s\S]*)?$/.exec(block);
+                if (!f) return;
+                const t = h.c !== undefined ? Number(h.a) * 3600 + Number(h.b) * 60 + Number(h.c) : Number(h.a) * 60 + Number(h.b);
+                out.push({ n: h.n, expr: h.expr, t, q: f[1].trim(), pt: f[2].trim(), ans: f[3].trim() });
+            });
+            return out;
+        }
+
+        let turns = [], starts = [], questions = [];
+        try {
+            const res = pairTurns(parseTranscript($('data-en').textContent, 'inglês'), parseTranscript($('data-pt').textContent, 'português'));
+            turns = res.rows;
+            if (!res.same) showAlert('As duas transcrições não têm exatamente os mesmos turnos e horários: foram alinhadas pelo horário. Vale conferir.', true, 12000);
+        } catch (err) { showAlert(err.message, true, 15000); }
+        try { questions = parseQuestions($('data-questions').textContent); } catch (err) { showAlert('Não foi possível ler as perguntas.', true, 15000); }
+        starts = turns.map(t => t.start);
+
+        // ================= Player (YouTube ou .mp4) =================
+        const player = {
+            kind: null, yt: null, kp: null, ready: false, v: null,
+            available() { return this.kind === 'mp4' || ((this.kind === 'yt' || this.kind === 'kaltura') && this.ready); },
+            getTime() { try { if (this.kind === 'mp4') return this.v.currentTime; if (this.kind === 'yt' && this.ready) return this.yt.getCurrentTime(); if (this.kind === 'kaltura' && this.ready) return this.kp.currentTime; } catch (e) {} return null; },
+            seek(t) { if (this.kind === 'mp4') this.v.currentTime = t; else if (this.kind === 'kaltura') this.kp.currentTime = t; else this.yt.seekTo(t, true); },
+            play() { if (this.kind === 'mp4') this.v.play().catch(() => {}); else if (this.kind === 'kaltura') { const p = this.kp.play(); if (p && p.catch) p.catch(() => {}); } else this.yt.playVideo(); },
+            pause() { if (this.kind === 'mp4') this.v.pause(); else if (this.kind === 'kaltura') this.kp.pause(); else this.yt.pauseVideo(); },
+            isPlaying() { try { if (this.kind === 'mp4') return !this.v.paused && !this.v.ended; if (this.kind === 'kaltura' && this.ready) return this.kp.paused === false && !this.kp.ended; if (this.kind === 'yt' && this.ready) return this.yt.getPlayerState() === 1; } catch (e) {} return false; },
+            getRate() { try { if (this.kind === 'mp4') return this.v.playbackRate || 1; if (this.kind === 'kaltura' && this.ready) return this.kp.playbackRate || 1; if (this.kind === 'yt' && this.ready) return this.yt.getPlaybackRate() || 1; } catch (e) {} return 1; }
+        };
+        function videoMessage(html) { const el = $('video-msg'); el.innerHTML = html; show(el, true); }
+        const YT_ERRORS = {
+            2: 'O ID do vídeo parece inválido.',
+            5: 'O navegador não conseguiu reproduzir este vídeo.',
+            100: 'O vídeo não foi encontrado (apagado ou privado).',
+            101: 'O dono do vídeo não permite que ele seja incorporado em outros sites.',
+            150: 'O dono do vídeo não permite que ele seja incorporado em outros sites.',
+            153: 'O YouTube não aceitou abrir o vídeo aqui. Isso acontece quando a página é aberta direto do computador (file://): publique no GitHub Pages ou abra por um servidor local.'
+        };
+        function loadYouTube() {
+            window.onYouTubeIframeAPIReady = function () {
+                const vars = { rel: 0, playsinline: 1, modestbranding: 1 };
+                if (location.protocol.indexOf('http') === 0) vars.origin = location.origin;
+                player.yt = new YT.Player('yt-host', {
+                    videoId: CONFIG.youtubeId, width: '100%', height: '100%', playerVars: vars,
+                    events: {
+                        onReady: () => { player.ready = true; },
+                        onError: e => videoMessage((YT_ERRORS[e.data] || 'Erro ao carregar o vídeo.') + `<br><br><a href="https://www.youtube.com/watch?v=${encodeURIComponent(CONFIG.youtubeId)}" target="_blank" rel="noopener">Abrir no YouTube</a>`)
+                    }
+                });
+            };
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            tag.onerror = () => videoMessage('Não foi possível carregar o player do YouTube. Verifique a conexão com a internet.');
+            document.head.appendChild(tag);
+        }
+        function loadKaltura() {
+            const K = CONFIG.kaltura;
+            show($('yt-host'), false);
+            show($('kaltura-host'), true, 'block');
+            let done = false;
+            // Plano B: o iframe oficial da ONU. O vídeo toca, mas a página não consegue controlá-lo (nem saber em que ponto está).
+            function fallback(why) {
+                if (done) return; done = true;
+                console.warn('Kaltura (player com controle) falhou:', why);
+                player.kind = 'iframe'; player.ready = false;
+                const url = `https://cdnapisec.kaltura.com/p/${K.partnerId}/embedPlaykitJs/uiconf_id/${K.uiConfId}?iframeembed=true&entry_id=${encodeURIComponent(K.entryId)}`
+                    + '&config[playback]=' + encodeURIComponent(JSON.stringify({ audioLanguage: K.audioLanguage }))
+                    + '&config[ui]=' + encodeURIComponent(JSON.stringify({ locale: 'en' }));
+                const host = $('kaltura-host');
+                host.innerHTML = '';
+                const f = document.createElement('iframe');
+                f.src = url; f.allowFullscreen = true; f.setAttribute('frameborder', '0');
+                f.setAttribute('allow', 'accelerometer *; autoplay *; encrypted-media *; gyroscope *; picture-in-picture *');
+                host.appendChild(f);
+                showAlert('O player da ONU abriu, mas a página não consegue controlá-lo: os cliques nos horários e nas transcrições não pulam o vídeo, e as transcrições não acompanham sozinhas. Use o vídeo manualmente.', true, 15000);
+            }
+            const tag = document.createElement('script');
+            tag.src = `https://cdnapisec.kaltura.com/p/${K.partnerId}/embedPlaykitJs/uiconf_id/${K.uiConfId}`;
+            tag.onerror = () => fallback('script nao carregou');
+            tag.onload = () => {
+                try {
+                    if (typeof KalturaPlayer === 'undefined') throw new Error('KalturaPlayer indefinido');
+                    const kp = KalturaPlayer.setup({
+                        targetId: 'kaltura-host',
+                        provider: { partnerId: K.partnerId, uiConfId: K.uiConfId },
+                        playback: { audioLanguage: K.audioLanguage, autoplay: false },
+                        ui: { locale: 'en' }
+                    });
+                    player.kp = kp;
+                    kp.loadMedia({ entryId: K.entryId }).then(() => { if (done) return; done = true; player.ready = true; }).catch(err => { done = false; fallback(err); });
+                    setTimeout(() => { if (!done) fallback('tempo esgotado'); }, 25000);
+                } catch (e) { fallback(e); }
+            };
+            document.head.appendChild(tag);
+        }
+        function initPlayer() {
+            if (CONFIG.mp4Url) {
+                player.kind = 'mp4'; player.v = $('html5');
+                show($('yt-host'), false); show(player.v, true, 'block');
+                player.v.addEventListener('error', () => videoMessage('Não foi possível carregar o arquivo de vídeo. Confira o endereço em CONFIG.mp4Url.'));
+                player.v.src = CONFIG.mp4Url;
+            } else if (CONFIG.kaltura && CONFIG.kaltura.entryId) {
+                player.kind = 'kaltura'; loadKaltura();
+            } else if (CONFIG.youtubeId) {
+                player.kind = 'yt'; loadYouTube();
+            } else {
+                videoMessage('Vídeo ainda não configurado.<br>No começo do script deste arquivo, preencha <b>youtubeId</b> em CONFIG<br>(ou use <b>?v=ID</b> no endereço da página).');
+            }
+        }
+
+        // ================= Turnos: qual está tocando, onde termina =================
+        // Devolve [primeiro, último] dos turnos ativos em t (turnos com o mesmo horário contam juntos), ou null antes do primeiro
+        function turnEnd(i) { const s = starts[i]; for (let j = i + 1; j < starts.length; j++) if (starts[j] > s) return starts[j]; return s + 10; }
+        function turnRange(t) {
+            if (!starts.length || t < starts[0]) return null;
+            let a = 0, b = starts.length - 1;
+            while (a < b) { const m = (a + b + 1) >> 1; if (starts[m] <= t) a = m; else b = m - 1; }
+            let lo = a; while (lo > 0 && starts[lo - 1] === starts[a]) lo--;
+            return [lo, a];
+        }
+        const norm = s => String(s ?? '').toLowerCase().replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
+        // O horário das perguntas aponta um pouco antes da expressão: procura a expressão no turno desse horário e nos seguintes.
+        // Devolve { from, idx }: o turno em que ela está (ou, se ela é cortada entre dois turnos, do primeiro ao segundo)
+        function exprTurn(t, expr) {
+            const r = turnRange(t);
+            const first = r ? r[0] : 0;
+            const needle = norm(expr);
+            if (needle) for (let k = first; k < Math.min(turns.length, first + 6); k++) {
+                if (norm(turns[k].en).includes(needle)) return { from: k, idx: k };
+                // expressão cortada entre dois turnos (ex.: "wasn't having" / "it."): vale o turno em que ela termina
+                if (k + 1 < turns.length && !norm(turns[k + 1].en).includes(needle) && norm(turns[k].en + ' ' + turns[k + 1].en).includes(needle)) return { from: k, idx: k + 1 };
+            }
+            return { from: first, idx: first };
+        }
+        // ---- destaque de expressões ----
+        // Padrão que ignora pontuação entre as palavras (vírgulas, aspas, ponto final...) e aceita ' ou ’
+        const SEP = '[\\s,;:.!?\u2026"\u201c\u201d\u2018\u2019\'\u2014\u2013-]+';
+        const patOf = str => String(str).trim().split(/\s+/)
+            .map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')).filter(Boolean)
+            .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/['\u2019]/g, "['\u2019]")).join(SEP);
+        // Acha `str` em `text`. Se `ratio` vier (posição relativa 0..1), entre várias ocorrências escolhe a mais próxima dessa posição
+        function findMatch(text, str, ratio) {
+            let re; try { re = new RegExp(patOf(str), 'gi'); } catch (e) { return null; }
+            let best = null, m;
+            while ((m = re.exec(text)) !== null) {
+                if (m[0] === '') { re.lastIndex++; continue; }
+                if (ratio == null) return m;
+                const d = Math.abs(m.index / Math.max(1, text.length) - ratio);
+                if (!best || d < best.d) best = { m, d };
+            }
+            return best ? best.m : null;
+        }
+        function markRanges(text, ranges) {   // ranges: [[inicio, fim], ...], sem sobreposição
+            let out = '', pos = 0;
+            ranges.slice().sort((a, b) => a[0] - b[0]).forEach(([a, b]) => { out += esc(text.slice(pos, a)) + '<mark class="expr-mark">' + esc(text.slice(a, b)) + '</mark>'; pos = b; });
+            return out + esc(text.slice(pos));
+        }
+        // Gabarito que resume a frase da transcrição (ex.: sem um aparte no meio): destaca o começo e o fim que aparecem no texto
+        function partialRanges(text, str, ratio) {
+            const words = String(str).trim().split(/\s+/);
+            if (words.length < 4) return null;
+            for (let k = words.length - 1; k >= 3; k--) {
+                const m = findMatch(text, words.slice(0, k).join(' '), ratio);
+                if (!m) continue;
+                const end = m.index + m[0].length, rest = words.slice(k), tail = text.slice(end);
+                for (let j = 0; j < rest.length; j++) {
+                    const m2 = findMatch(tail, rest.slice(j).join(' '));
+                    if (m2) return [[m.index, end], [end + m2.index, end + m2.index + m2[0].length]];
+                }
+                return [[m.index, end]];
+            }
+            return null;
+        }
+        const markHTML = (text, m) => esc(text.slice(0, m.index)) + '<mark class="expr-mark">' + esc(m[0]) + '</mark>' + esc(text.slice(m.index + m[0].length));
+        // Expressão cortada entre dois turnos: destaca o fim do primeiro e o começo do segundo (ou null se não achar)
+        function splitHL(a, b, expr) {
+            const words = String(expr).trim().split(/\s+/);
+            for (let k = words.length - 1; k >= 1; k--) {
+                let ma = null, mb = null;
+                try {
+                    ma = new RegExp(patOf(words.slice(0, k).join(' ')) + '(?=[\\s.,;:!?\u2026"\u201d\u2019\']*$)', 'i').exec(a);
+                    mb = new RegExp('^[\\s"\u201c\u2018]*(' + patOf(words.slice(k).join(' ')) + ')', 'i').exec(b);
+                } catch (e) {}
+                if (ma && mb) {
+                    const bi = mb.index + mb[0].length - mb[1].length;
+                    return [
+                        esc(a.slice(0, ma.index)) + '<mark class="expr-mark">' + esc(ma[0]) + '</mark>' + esc(a.slice(ma.index + ma[0].length)),
+                        esc(b.slice(0, bi)) + '<mark class="expr-mark">' + esc(mb[1]) + '</mark>' + esc(b.slice(bi + mb[1].length))
+                    ];
+                }
+            }
+            return null;
+        }
+        // Trechos entre aspas do gabarito, na ordem (o primeiro costuma ser a tradução escolhida)
+        function quotedCandidates(ans) {
+            const out = [], re = /[\u201c"]([^\u201d"]+)[\u201d"]/g; let m;
+            while ((m = re.exec(String(ans))) !== null) {
+                const c = m[1].trim().replace(/[.,;:!?\u2026]+$/, '');
+                if (c && !out.includes(c)) out.push(c);
+            }
+            return out;
+        }
+        // Devolve o HTML dos turnos de from..idx, em inglês e em português, com a expressão (EN) e a tradução do gabarito (PT) destacadas
+        function highlightRange(q, from, idx) {
+            const en = [], pt = [], n = idx - from + 1;
+            for (let k = from; k <= idx; k++) { en.push(turns[k].en); pt.push(turns[k].pt); }
+            let enHtml = en.map(esc), ratio = null;
+            if (n === 1) {
+                const m = findMatch(en[0], q.expr);
+                if (m) { enHtml = [markHTML(en[0], m)]; ratio = m.index / Math.max(1, en[0].length); }
+            } else if (n === 2) {
+                const sp = splitHL(en[0], en[1], q.expr);
+                if (sp) enHtml = sp;
+            }
+            let ptHtml = pt.map(esc);
+            for (const c of quotedCandidates(q.ans)) {
+                let done = false;
+                for (let i = 0; i < n && !done; i++) {
+                    const m = findMatch(pt[i], c, ratio);
+                    if (m) { ptHtml[i] = markHTML(pt[i], m); done = true; }
+                }
+                if (!done && n === 2) { const sp = splitHL(pt[0], pt[1], c); if (sp) { ptHtml = sp; done = true; } }
+                for (let i = 0; i < n && !done; i++) {
+                    const r = partialRanges(pt[i], c, ratio);
+                    if (r) { ptHtml[i] = markRanges(pt[i], r); done = true; }
+                }
+                if (done) break;
+            }
+            return { en: enHtml, pt: ptHtml };
+        }
+
+        // ================= Ir até um ponto do vídeo =================
+        function playFrom(t) {
+            if (!player.available()) { showAlert(player.kind === 'iframe' ? `A página não controla este player. Vá manualmente até ${fmtShort(t)}.` : (player.kind ? 'O vídeo ainda está carregando. Tente de novo em um instante.' : 'O vídeo ainda não foi configurado.'), true); return; }
+            player.seek(t + CONFIG.offsetSeconds);
+            player.play();
+        }
+
+        // ================= Transcrições =================
+        let activeKey = null, activeLo = -1, follow = true, mode = 'transcripts';
+        // Um box (inglês ou português) de um turno, na cor do falante
+        function turnBox(t, cls, tag, innerHtml, compact) {
+            const av = getAvatarColors(t.who), name = prettyName(t.who);
+            const head = compact
+                ? `<div class="flex items-center gap-2 mb-2">
+                            <span class="font-bold text-xs text-slate-800 truncate">${esc(name)}</span>
+                            <span class="shrink-0 text-[11px] font-mono text-slate-500 bg-white px-1.5 py-0.5 rounded">${fmtHMS(t.start)}</span>
+                            <span class="ml-auto shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200">${tag}</span>
+                        </div>`
+                : null;
+            if (head) return `<div class="box sp ${cls} border border-slate-200 rounded-xl p-3 shadow-sm" style="--sp-bg: ${av.tint}; --sp-bgd: ${av.tintD}; --sp-bd: ${av.accent}; --sp-bdd: ${av.accentD};">${head}<p class="txt text-slate-700 m-0">${innerHtml}</p></div>`;
+            return `<div class="box sp ${cls} border border-slate-200 rounded-xl p-4 shadow-sm" style="--sp-bg: ${av.tint}; --sp-bgd: ${av.tintD}; --sp-bd: ${av.accent}; --sp-bdd: ${av.accentD};">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-sm border border-black/5 avatar-dyn" style="background-color: ${av.bg}; color: ${av.text}; --av-bg-d: ${av.bgD}; --av-fg-d: ${av.textD};">${esc(name.charAt(0))}</div>
+                            <span class="font-bold text-sm text-slate-800 truncate">${esc(name)}</span>
+                            <span class="shrink-0 text-xs font-mono text-slate-500 bg-white px-2 py-1 rounded">${fmtHMS(t.start)}</span>
+                            <span class="ml-auto shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200">${tag}</span>
+                        </div>
+                        <p class="txt text-slate-700 m-0">${innerHtml}</p>
+                    </div>`;
+        }
+        function buildTranscript() {
+            const head = `<div class="sticky top-0 z-10 bg-slate-50 pt-3 pb-1 px-1"><div class="cols text-[11px] font-bold uppercase tracking-wider text-slate-500"><div class="col-en">English</div><div class="col-pt">Português</div></div></div>`;
+            $('transcript-container').innerHTML = head + turns.map((t, i) => {
+                return `<div class="utterance cols cursor-pointer mb-3" id="turn-${i}" data-i="${i}" data-text="${esc((t.who + ' ' + t.en + ' ' + t.pt).toLowerCase())}">
+                    ${turnBox(t, 'col-en', 'EN', esc(t.en))}
+                    ${turnBox(t, 'col-pt', 'PT', esc(t.pt))}
+                </div>`;
+            }).join('');
+            $('utterance-count').textContent = `${turns.length} turnos`;
+        }
+        function scrollToCard(el, smooth) {
+            if (!el || !el.offsetParent) return;
+            const c = $('transcript-container'), cr = c.getBoundingClientRect(), er = el.getBoundingClientRect();
+            const target = c.scrollTop + (er.top - cr.top) - (c.clientHeight / 2 - er.height / 2);
+            c.scrollTo({ top: Math.max(0, target), behavior: smooth ? 'smooth' : 'auto' });
+        }
+        // Rolagem que acompanha a fala, como um teleprompter: a "linha de leitura" anda ao longo de cada turno na mesma proporção
+        // do tempo do turno, e vai de um turno ao outro sem salto (do topo de um box ao topo do próximo). É uma estimativa: supõe
+        // fala em ritmo constante. Para ficar suave, a página usa um relógio próprio, que anda a cada quadro (60 vezes por segundo)
+        // e é corrigido aos poucos pelo tempo do player, que chega só a cada ~0,25 s e em degraus.
+        const clock = { base: 0, at: 0, playing: false, rate: 1, last: null };
+        const estTime = now => clock.base + (clock.playing ? (now - clock.at) / 1000 * clock.rate : 0);
+        let holdUntil = 0, wake = false, pos = null;
+        function focusTarget(t) {
+            const r = turnRange(t);
+            if (!r) return null;
+            const first = $('turn-' + r[0]);
+            if (!first || !first.offsetParent) return null;
+            const c = $('transcript-container'), top = first.offsetTop;
+            let nextTop = null;
+            for (let k = r[1] + 1; k < turns.length; k++) { const e = $('turn-' + k); if (e && e.offsetParent) { nextTop = e.offsetTop; break; } }
+            if (nextTop === null) { const last = $('turn-' + r[1]); nextTop = last.offsetTop + last.offsetHeight; }
+            const start = starts[r[0]], end = turnEnd(r[1]);
+            const p = Math.min(1, Math.max(0, (t - start) / Math.max(1, end - start)));
+            return Math.max(0, top + 40 + p * (nextTop - top) - c.clientHeight * 0.38);
+        }
+        function followSnap() {   // vai direto para a posição atual (sem animação)
+            const vt = clock.last === null ? player.getTime() : estTime(performance.now());
+            const tg = vt == null ? null : focusTarget(vt - CONFIG.offsetSeconds);
+            if (tg != null) { $('transcript-container').scrollTop = tg; pos = null; }
+            else if (activeLo >= 0) scrollToCard($('turn-' + activeLo), false);
+        }
+        (function () {
+            const c = $('transcript-container');
+            // se a pessoa rolar ou selecionar texto por conta própria, a rolagem automática espera um pouco
+            const hold = () => { holdUntil = performance.now() + 6000; pos = null; };
+            ['wheel', 'touchstart', 'pointerdown'].forEach(ev => c.addEventListener(ev, hold, { passive: true }));
+            (function frame(now) {
+                requestAnimationFrame(frame);
+                if (!follow || mode !== 'transcripts' || now < holdUntil || !(clock.playing || wake)) return;
+                const tg = focusTarget(estTime(now) - CONFIG.offsetSeconds);
+                if (tg == null) return;
+                if (pos === null || Math.abs(c.scrollTop - pos) > 2) pos = c.scrollTop;   // outra coisa mexeu na rolagem: recomeça dali
+                const d = tg - pos;
+                pos += d * (Math.abs(d) > 600 ? 0.3 : 0.25);
+                c.scrollTop = pos;
+                if (!clock.playing && Math.abs(tg - pos) < 0.5) wake = false;
+            })(performance.now());
+        })();
+        function updateActive(t) {
+            const r = turnRange(t);
+            const key = r ? r[0] + '-' + r[1] : null;
+            if (key === activeKey) return;
+            activeKey = key; activeLo = -1;
+            document.querySelectorAll('#transcript-container .utterance.active').forEach(e => e.classList.remove('active'));
+            if (!r) return;
+            for (let i = r[0]; i <= r[1]; i++) { const el = $('turn-' + i); if (el) el.classList.add('active'); }
+            activeLo = r[0];
+        }
+        $('transcript-container').addEventListener('click', e => {
+            const card = e.target.closest('.utterance');
+            if (!card) return;
+            if (!player.available()) { showAlert(player.kind === 'iframe' ? `A página não controla este player. Vá manualmente até ${fmtHMS(turns[Number(card.dataset.i)].start)}.` : (player.kind ? 'O vídeo ainda está carregando.' : 'O vídeo ainda não foi configurado.'), true); return; }
+            holdUntil = 0; wake = true;
+            player.seek(turns[Number(card.dataset.i)].start + CONFIG.offsetSeconds + 0.01);
+            player.play();
+        });
+        $('search-input').addEventListener('input', e => {
+            const q = e.target.value.toLowerCase().trim();
+            let n = 0;
+            document.querySelectorAll('#transcript-container .utterance').forEach(el => {
+                const ok = !q || el.dataset.text.includes(q);
+                el.classList.toggle('hidden', !ok);
+                if (ok) n++;
+            });
+            $('utterance-count').textContent = `${n} turnos`;
+        });
+        const SW_ON = 'text-xs font-semibold px-3 py-1.5 rounded-md bg-white text-indigo-700 shadow-sm';
+        const SW_OFF = 'text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-700';
+        const CB = 'chrome-btn flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors ';
+        const CB_ON = CB + 'bg-indigo-100 text-indigo-700', CB_OFF = CB + 'text-slate-600 hover:bg-slate-100';
+        function setLang(l) {
+            const c = $('transcript-container');
+            c.classList.remove('lang-both', 'lang-en', 'lang-pt'); c.classList.add('lang-' + l);
+            document.querySelectorAll('#lang-switch button').forEach(b => { b.className = b.dataset.lang === l ? SW_ON : SW_OFF; });
+            followSnap();
+        }
+        $('lang-switch').addEventListener('click', e => { const b = e.target.closest('button[data-lang]'); if (b) setLang(b.dataset.lang); });
+        function paintFollow() {
+            const b = $('follow-btn');
+            b.setAttribute('aria-pressed', String(follow));
+            b.className = 'shrink-0 text-xs font-semibold py-1.5 px-3 rounded-lg border transition-colors whitespace-nowrap shadow-sm ' + (follow ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50');
+        }
+        $('follow-btn').addEventListener('click', () => { follow = !follow; paintFollow(); if (follow) { holdUntil = 0; wake = true; pos = null; } });
+
+        // ================= Perguntas =================
+        let qIdx = 0, qFilter = 'all', qShuffled = false, resetArmed = false;
+        const qOriginal = questions.map((_, i) => i);
+        let qOrder = qOriginal.slice();
+        const revealed = new Set();
+        let ctxOn = false, ctxKey = null;   // trecho da transcrição abaixo do vídeo: liga/desliga e vale para as próximas perguntas
+        const RK = 'translationPracticeRatings_omm';
+        let ratings = {};
+        try { ratings = JSON.parse(localStorage.getItem(RK) || '{}') || {}; } catch (e) { ratings = {}; }
+        function saveRatings() { try { localStorage.setItem(RK, JSON.stringify(ratings)); } catch (e) {} }
+        const rateOf = i => ratings[questions[i].n] || null;
+        function matches(i) { const r = rateOf(i); return qFilter === 'all' || (qFilter === 'review' && (r === 'almost' || r === 'miss')) || (qFilter === 'todo' && !r); }
+        const visibleList = () => qOrder.filter(i => i === qIdx || matches(i));
+        // Próxima (dir = 1) ou anterior (dir = -1) pergunta que aparece no filtro atual, na ordem atual
+        function stepFrom(dir) {
+            let p = qOrder.indexOf(qIdx) + dir;
+            while (p >= 0 && p < qOrder.length) { if (matches(qOrder[p])) return qOrder[p]; p += dir; }
+            return null;
+        }
+        const RATE_NAME = { ok: 'acertei', almost: 'quase', miss: 'errei' };
+        const RATE_CLS = {
+            ok: 'bg-emerald-100 text-emerald-800 border-slate-200 hover:bg-emerald-200',
+            almost: 'bg-amber-100 text-amber-800 border-slate-200 hover:bg-amber-200',
+            miss: 'bg-rose-100 text-rose-800 border-slate-200 hover:bg-rose-200'
+        };
+        const DOT = { ok: 'bg-emerald-500', almost: 'bg-amber-400', miss: 'bg-rose-500' };
+        const OPEN_CLS = 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-200';
+        const IDLE_CLS = 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200';
+        const PLAY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>';
+        function timeBtnInline(label, sec) {
+            return `<button type="button" data-t="${sec}" class="font-semibold text-indigo-700 hover:text-indigo-900 underline decoration-dotted underline-offset-2 cursor-pointer" title="Ouvir o trecho no vídeo">${label}</button>`;
+        }
+        // Transforma "0 minutes 25 seconds" e "0min25s" dentro do texto em botões que tocam o vídeo naquele ponto
+        function withTimeButtons(raw) {
+            return esc(raw)
+                .replace(/(\d+)\s+minutes?\s+(\d+)\s+seconds?/gi, (m, a, b) => timeBtnInline(m, Number(a) * 60 + Number(b)))
+                .replace(/(\d+)\s*min\s*(\d{1,2})\s*s\b/gi, (m, a, b) => timeBtnInline(m, Number(a) * 60 + Number(b)));
+        }
+        const LABEL = 'text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1';
+        function renderNav() {
+            const vis = visibleList();
+            $('q-nav').innerHTML = vis.map(i => {
+                const q = questions[i], cur = i === qIdx, r = rateOf(i), seen = revealed.has(i);
+                const cls = cur ? 'bg-indigo-600 text-white border-indigo-300' : r ? RATE_CLS[r] : seen ? OPEN_CLS : IDLE_CLS;
+                const dot = cur && r ? `<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white ${DOT[r]}"></span>` : '';
+                return `<button type="button" data-q="${i}" class="relative w-8 h-8 rounded-lg text-xs font-bold border transition-colors ${cls}" ${cur ? 'aria-current="true"' : ''} aria-label="Pergunta ${q.n}${r ? ' (' + RATE_NAME[r] + ')' : ''}">${q.n}${dot}</button>`;
+            }).join('');
+            $('q-progress').textContent = `Pergunta ${questions.length ? vis.indexOf(qIdx) + 1 : 0} de ${vis.length}`;
+            $('q-prev').disabled = stepFrom(-1) === null;
+            $('q-next').disabled = stepFrom(1) === null;
+            const c = { ok: 0, almost: 0, miss: 0 };
+            questions.forEach((_, i) => { const r = rateOf(i); if (r) c[r]++; });
+            const todo = questions.length - c.ok - c.almost - c.miss;
+            $('q-stats').innerHTML = `<span><b class="text-emerald-800">${c.ok}</b> acertei &middot; <b class="text-amber-800">${c.almost}</b> quase &middot; <b class="text-rose-800">${c.miss}</b> errei &middot; ${todo} sem avaliação</span>`
+                + (c.ok + c.almost + c.miss ? `<button type="button" id="q-reset" class="underline underline-offset-2 hover:text-slate-700">${resetArmed ? 'Clique de novo para zerar' : 'Zerar avaliações'}</button>` : '');
+            document.querySelectorAll('#q-filter button').forEach(b => { b.className = b.dataset.f === qFilter ? SW_ON : SW_OFF; });
+            $('q-shuffle').textContent = qShuffled ? 'Ordem original' : 'Embaralhar';
+        }
+        function scoreBtn(key, label, cur) {
+            const on = cur === key;
+            const cls = on ? RATE_CLS[key].replace(/ hover:\S+/, '') : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50';
+            return `<button type="button" data-score="${key}" aria-pressed="${on}" class="text-xs font-semibold py-1.5 px-3 rounded-lg border transition-colors shadow-sm ${cls}">${on ? '&check; ' : ''}${label}</button>`;
+        }
+        // Turnos vizinhos para dar contexto: pelo menos um de cada lado e, se forem muito curtos, mais alguns (até 3)
+        function neighborRange(from, idx) {
+            let a = from, b = idx, chars = 0;
+            while (a > 0 && chars < 250 && from - a < 3) { a--; chars += turns[a].en.length; }
+            chars = 0;
+            while (b < turns.length - 1 && chars < 250 && b - idx < 3) { b++; chars += turns[b].en.length; }
+            return [a, b];
+        }
+        function contextHTML(q, showPt) {
+            const ex = exprTurn(q.t, q.expr);
+            const hl = highlightRange(q, ex.from, ex.idx);
+            const [a, b] = neighborRange(ex.from, ex.idx);
+            let rows = '';
+            for (let k = a; k <= b; k++) {
+                const t = turns[k], main = k >= ex.from && k <= ex.idx;
+                const en = main ? hl.en[k - ex.from] : esc(t.en), pt = main ? hl.pt[k - ex.from] : esc(t.pt);
+                const cls = main ? '' : ' ctx-dim';
+                rows += showPt
+                    ? `<div ${main ? 'data-main="1"' : ''} class="cols mb-3${cls}" style="column-gap: .5rem;">${turnBox(t, 'col-en', 'EN', en, true)}${turnBox(t, 'col-pt', 'PT', pt, true)}</div>`
+                    : `<div ${main ? 'data-main="1"' : ''} class="mb-3${cls}">${turnBox(t, 'col-en', 'EN', en, true)}</div>`;
+            }
+            if (!showPt) rows += '<p class="text-[11px] text-slate-500 m-0 mb-2">O português da transcrição aparece aqui quando você abrir o gabarito.</p>';
+            return rows;
+        }
+        // Mostra (ou esconde) o trecho logo abaixo do vídeo, só no modo perguntas.
+        // Antes de abrir o gabarito mostra só o inglês (o português da transcrição entregaria a resposta).
+        function renderCtxPanel() {
+            const q = questions[qIdx];
+            const on = mode === 'questions' && ctxOn && !!q;
+            $('ctx-panel').classList.toggle('open', on);
+            if (!on) { ctxKey = null; return; }
+            const showPt = revealed.has(qIdx), key = qIdx + '|' + showPt;
+            $('ctx-sub').textContent = showPt ? '(expressão e tradução destacadas · turnos vizinhos esmaecidos)' : '(expressão destacada · turnos vizinhos esmaecidos)';
+            if (ctxKey === key) return;   // já está mostrando isto: não perde a rolagem
+            const sameQuestion = ctxKey !== null && ctxKey.split('|')[0] === String(qIdx);
+            ctxKey = key;
+            const body = $('ctx-body'), keep = body.scrollTop;
+            body.innerHTML = contextHTML(q, showPt);
+            if (sameQuestion) { body.scrollTop = keep; return; }   // só abriu/fechou o gabarito: mantém onde estava
+            body.scrollTop = 0;
+            requestAnimationFrame(() => {
+                const mains = body.querySelectorAll('[data-main]');
+                if (!mains.length) return;
+                const top = mains[0].offsetTop, last = mains[mains.length - 1], height = last.offsetTop + last.offsetHeight - top;
+                if (height <= body.clientHeight * 0.8) { body.scrollTop = Math.max(0, top - (body.clientHeight - height) / 2); return; }   // turno curto: centralizado, com os vizinhos em volta
+                const mk = body.querySelector('mark');   // turno longo: a expressão fica mais ou menos no primeiro terço
+                body.scrollTop = Math.max(0, (mk ? mk.offsetTop : top) - body.clientHeight / 3);
+            });
+        }
+        function renderQuestion(keepScroll) {
+            const body = $('q-body'), prevTop = body.scrollTop;
+            const q = questions[qIdx];
+            if (!q) { body.innerHTML = '<p class="text-sm text-slate-500 text-center mt-10">Nenhuma pergunta carregada.</p>'; return; }
+            const open = revealed.has(qIdx), cur = rateOf(qIdx), ctx = ctxOn;
+            body.innerHTML = `
+                <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex flex-wrap items-center gap-3 mb-5">
+                        <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">${q.n}</span>
+                        <span class="font-semibold text-[15px] text-slate-800">&ldquo;${esc(q.expr)}&rdquo;</span>
+                        <button type="button" data-t="${q.t}" class="inline-flex items-center gap-1.5 font-mono text-xs bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-300 px-2.5 py-1 rounded-lg font-semibold shadow-sm" title="Ir para este ponto do vídeo">${PLAY_ICON}${fmtShort(q.t)}</button>
+                    </div>
+                    <div class="${LABEL}">Question</div>
+                    <p class="txt text-slate-700 m-0">${withTimeButtons(q.q)}</p>
+                    <div class="mt-6 flex flex-wrap items-center gap-3">
+                        <button id="reveal-btn" type="button" class="${open ? 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} font-semibold text-xs py-1.5 px-3 rounded-lg transition-colors shadow-sm">${open ? 'Esconder tradução e resposta' : 'Mostrar tradução e resposta'}</button>
+                        <button id="ctx-btn" type="button" aria-expanded="${ctx}" class="text-xs font-semibold py-1.5 px-3 rounded-lg border transition-colors shadow-sm bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-50">${ctx ? 'Esconder trecho' : 'Ver trecho da transcrição'}</button>
+                        ${open ? '' : '<span class="text-xs text-slate-500">Pense na sua resposta antes de abrir.</span>'}
+                    </div>
+                    ${open ? `<div class="mt-5 bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+                        <div class="${LABEL}">Pergunta</div>
+                        <p class="txt text-slate-700 m-0">${withTimeButtons(q.pt)}</p>
+                        <div class="${LABEL} mt-4">Resposta</div>
+                        <p class="txt text-slate-700 m-0">${esc(q.ans)}</p>
+                    </div>
+                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-500 mr-1">Como foi a sua resposta?</span>
+                        ${scoreBtn('ok', 'Acertei', cur)}${scoreBtn('almost', 'Quase', cur)}${scoreBtn('miss', 'Errei', cur)}
+                    </div>
+                    ` : ''}
+                </div>`;
+            body.scrollTop = keepScroll ? prevTop : 0;
+            renderCtxPanel();
+        }
+        function gotoQuestion(i) {
+            if (i === null || i < 0 || i >= questions.length) return;
+            qIdx = i; renderNav(); renderQuestion(false);
+        }
+        $('q-nav').addEventListener('click', e => { const b = e.target.closest('button[data-q]'); if (b) gotoQuestion(Number(b.dataset.q)); });
+        $('q-prev').addEventListener('click', () => gotoQuestion(stepFrom(-1)));
+        $('q-next').addEventListener('click', () => gotoQuestion(stepFrom(1)));
+        $('q-filter').addEventListener('click', e => {
+            const b = e.target.closest('button[data-f]');
+            if (!b) return;
+            qFilter = b.dataset.f;
+            if (!matches(qIdx)) {
+                const first = qOrder.find(matches);
+                if (first !== undefined) { gotoQuestion(first); return; }
+                showAlert('Nenhuma pergunta nesse filtro por enquanto.');
+            }
+            renderNav();
+        });
+        $('q-shuffle').addEventListener('click', () => {
+            qShuffled = !qShuffled;
+            qOrder = qOriginal.slice();
+            if (qShuffled) for (let i = qOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [qOrder[i], qOrder[j]] = [qOrder[j], qOrder[i]]; }
+            const first = qOrder.find(matches);
+            gotoQuestion(first !== undefined ? first : qIdx);
+        });
+        let resetTimer = null;
+        $('q-stats').addEventListener('click', e => {
+            if (!e.target.closest('#q-reset')) return;
+            if (!resetArmed) { resetArmed = true; clearTimeout(resetTimer); resetTimer = setTimeout(() => { resetArmed = false; renderNav(); }, 3000); renderNav(); return; }
+            resetArmed = false; clearTimeout(resetTimer); ratings = {}; saveRatings(); renderNav(); renderQuestion(true);
+        });
+        $('ctx-close').addEventListener('click', () => { ctxOn = false; renderQuestion(true); });
+        $('q-body').addEventListener('click', e => {
+            const tb = e.target.closest('[data-t]');
+            if (tb) { playFrom(Number(tb.dataset.t)); return; }
+            const sb = e.target.closest('[data-score]');
+            if (sb) {
+                const q = questions[qIdx], v = sb.dataset.score;
+                if (ratings[q.n] === v) delete ratings[q.n]; else ratings[q.n] = v;
+                saveRatings(); renderNav(); renderQuestion(true); return;
+            }
+            if (e.target.closest('#ctx-btn')) {
+                ctxOn = !ctxOn; renderQuestion(true); return;
+            }
+            if (e.target.closest('#reveal-btn')) {
+                if (revealed.has(qIdx)) revealed.delete(qIdx); else revealed.add(qIdx);
+                renderNav(); renderQuestion(true);
+            }
+        });
+        document.addEventListener('keydown', e => {
+            if (mode !== 'questions' || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName || ''))) return;
+            if (e.key === 'ArrowRight') gotoQuestion(stepFrom(1));
+            else if (e.key === 'ArrowLeft') gotoQuestion(stepFrom(-1));
+        });
+
+        // ================= Modo (transcrições / perguntas) =================
+        const MODES = ['transcripts', 'video', 'questions'];
+        function setMode(m) {
+            mode = m;
+            $('main').dataset.mode = m; document.body.dataset.mode = m;
+            show($('view-transcripts'), m === 'transcripts'); show($('view-questions'), m === 'questions'); show($('panel'), m !== 'video');
+            renderCtxPanel();
+            MODES.forEach(k => { const b = $('mode-' + k); b.className = k === m ? CB_ON : CB_OFF; b.setAttribute('aria-pressed', String(k === m)); });
+            if (m === 'transcripts') requestAnimationFrame(followSnap);
+        }
+        MODES.forEach(k => $('mode-' + k).addEventListener('click', () => setMode(k)));
+
+        // ================= Tamanho da letra =================
+        const FS = [0.85, 1, 1.15, 1.3, 1.5];   // limites: nenhum tamanho quebra o layout
+        let fsI = 1;
+        try { const sv = parseInt(localStorage.getItem('translationPracticeFont'), 10); if (sv >= 0 && sv < FS.length) fsI = sv; } catch (e) {}
+        function paintFs(keep) {
+            document.documentElement.style.setProperty('--fs', String(FS[fsI]));
+            document.querySelectorAll('.fs-down').forEach(b => { b.disabled = fsI <= 0; });
+            document.querySelectorAll('.fs-up').forEach(b => { b.disabled = fsI >= FS.length - 1; });
+            try { localStorage.setItem('translationPracticeFont', String(fsI)); } catch (e) {}
+            if (keep && mode === 'transcripts') requestAnimationFrame(followSnap);
+        }
+        document.querySelectorAll('.fs-down').forEach(b => b.addEventListener('click', () => { if (fsI > 0) { fsI--; paintFs(true); } }));
+        document.querySelectorAll('.fs-up').forEach(b => b.addEventListener('click', () => { if (fsI < FS.length - 1) { fsI++; paintFs(true); } }));
+        paintFs(false);
+
+        // ================= Tamanho do vídeo (barra arrastável) =================
+        (function () {
+            const sp = $('splitter'), box = $('video-box'), KEY = 'translationPracticeVideoH';
+            const clampH = h => Math.max(120, Math.min(h, window.innerHeight * 0.7));
+            const apply = h => document.documentElement.style.setProperty('--vh', clampH(h) + 'px');
+            try { const saved = parseFloat(localStorage.getItem(KEY)); if (saved > 0) apply(saved); } catch (e) {}
+            const save = () => { try { localStorage.setItem(KEY, String(Math.round(box.getBoundingClientRect().height))); } catch (e) {} };
+            let startY = 0, startH = 0;
+            sp.addEventListener('pointerdown', e => {
+                startY = e.clientY; startH = box.getBoundingClientRect().height;
+                sp.setPointerCapture(e.pointerId); sp.classList.add('dragging'); e.preventDefault();
+            });
+            sp.addEventListener('pointermove', e => { if (sp.classList.contains('dragging')) apply(startH + (e.clientY - startY)); });
+            const end = () => { if (!sp.classList.contains('dragging')) return; sp.classList.remove('dragging'); save(); };
+            sp.addEventListener('pointerup', end); sp.addEventListener('pointercancel', end);
+            sp.addEventListener('dblclick', () => { document.documentElement.style.removeProperty('--vh'); try { localStorage.removeItem(KEY); } catch (e) {} });
+            sp.addEventListener('keydown', e => {
+                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                e.preventDefault(); apply(box.getBoundingClientRect().height + (e.key === 'ArrowDown' ? 30 : -30)); save();
+            });
+        })();
+
+        // ================= Vídeo: botões e o relógio que move tudo junto =================
+        $('skip-back-btn').addEventListener('click', () => { const t = player.getTime(); if (t != null) player.seek(Math.max(0, t - 5)); });
+        $('skip-forward-btn').addEventListener('click', () => { const t = player.getTime(); if (t != null) player.seek(t + 5); });
+        function tick() {
+            const vt = player.getTime();
+            if (vt == null) return;
+            const now = performance.now(), est = estTime(now), playing = player.isPlaying();
+            const jumped = clock.last === null || Math.abs(vt - est) > 0.8;   // primeira leitura ou pulo no vídeo
+            clock.base = jumped || !playing ? vt : est + (vt - est) * 0.3;     // tocando: corrige aos poucos, sem soluços
+            clock.at = now; clock.playing = playing; clock.rate = player.getRate(); clock.last = vt;
+            updateActive(vt - CONFIG.offsetSeconds);
+            if (jumped) { holdUntil = 0; wake = true; }
+        }
+        setInterval(tick, 200);
+
+        // ================= Tema escuro =================
+        (function () {
+            const KEY = 'translationPracticeTheme';
+            const root = document.documentElement, btn = $('theme-btn');
+            const mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+            const hasSaved = () => { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } };
+            function paint() {
+                const dark = root.classList.contains('dark');
+                const label = dark ? 'Mudar para o modo claro' : 'Mudar para o modo escuro';
+                btn.setAttribute('aria-pressed', String(dark)); btn.setAttribute('aria-label', label); btn.title = label;
+                $('theme-label').textContent = dark ? 'Modo claro' : 'Modo escuro';
+            }
+            btn.addEventListener('click', () => {
+                const dark = !root.classList.contains('dark');
+                root.classList.toggle('dark', dark);
+                try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (e) {}
+                paint();
+            });
+            if (mq) {
+                const follow = e => { if (!hasSaved()) { root.classList.toggle('dark', e.matches); paint(); } };
+                if (mq.addEventListener) mq.addEventListener('change', follow); else if (mq.addListener) mq.addListener(follow);
+            }
+            paint();
+        })();
+
+        // ================= Início =================
+        buildTranscript(); paintFollow();
+        renderNav(); renderQuestion(false);
+        setMode('transcripts');
+        initPlayer();
+
+        if (typeof tailwind === 'undefined') showAlert('O arquivo de estilo (tailwind.js) não foi encontrado e não há internet para buscá-lo: a página vai aparecer sem o layout.', true, 600000);
+    </script>
+</body>
+</html>
